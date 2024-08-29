@@ -331,8 +331,8 @@ def training(params,mesh,funcs,sigs_max):
     return NN_model
 
 N       = 3
-N_exact = 5
-num_x   = 16
+N_exact = 63
+num_x   = 64
 num_t   = num_x
 num_mu  = N_exact +1 
 
@@ -349,8 +349,8 @@ t       = torch.arange(0,T+dt,dt)
 x       = torch.arange(xl,xr,dx)
 
 #batch size is number of sigs values per IC per epoch
-batch_size  = 2
-num_epochs  = 2
+batch_size  = 5
+num_epochs  = 100
 learning_rate = 1e6
 momentum_factor = 0.9
 sigs_max  = 1
