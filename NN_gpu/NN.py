@@ -252,7 +252,7 @@ def testing(params,mesh,funcs):
     plt.show() 
 
 
-def training(rank,num_gpus,params,mesh,funcs,sigs_max):
+def training(params,mesh,funcs,sigs_max):
 
     num_x   = params['num_x']
     num_t   = params['num_t']
@@ -268,14 +268,8 @@ def training(rank,num_gpus,params,mesh,funcs,sigs_max):
     x       = mesh['x']
     source_exact = funcs['source_exact']
     source       = funcs['source']
-    
-    dist.init_process_group("nccl", rank=rank, world_size=num_gpus)
-    
-    # Create model and move it to the correct GPU
-    NN_model = SimpleNN(N).to(rank)
-    
-    # Wrap the model with DDP
-    NN_model = DDP(NN_model, device_ids=[rank])
+
+    NN_model = SimpleNN(N)
     
     opt = optim.SGD(NN_model.parameters(), lr=learning_rate, momentum=momentum_factor)
     #opt = optim.Adam(NN_model.parameters(), lr=learning_rate)
@@ -333,7 +327,6 @@ def training(rank,num_gpus,params,mesh,funcs,sigs_max):
         loss.backward()
         opt.step()
         print('epoch', l)
-    dist.destroy_process_group()
 
     return NN_model
 
@@ -398,8 +391,8 @@ funcs = {'filter'      : filter,
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    num_gpus = torch.cuda.device_count()
-    NN_model = mp.spawn(training, args = (num_gpus,params,mesh,
-             funcs,sigs_max), nprocs=num_gpus, join=True)
+    NN_model = training(params,mesh,funcs,sigs_max)
+    # NN_model = mp.spawn(training, args = (num_gpus,params,mesh,
+    #          funcs,sigs_max), nprocs=num_gpus, join=True)
     torch.save(NN_model, "model_scripted.pth")   
     testing(params,mesh,funcs)
