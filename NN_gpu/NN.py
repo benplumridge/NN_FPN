@@ -2,10 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
-import torch.distributed as dist
 import torch.optim as optim
-import torch.multiprocessing as mp
-from torch.nn.parallel import DistributedDataParallel as DDP
 from numpy import asarray
 from numpy import savetxt
 
@@ -227,10 +224,12 @@ def testing(params,mesh,funcs):
     NN_model.eval()
     
     exact  = torch.zeros([num_t+1,num_x,N_exact+1])
+    exact = exact.to('cuda')
     exact0,sigs,sigt,source_exact,CN = initial_data_vanishing(N_exact,num_x,num_mu,glw,mu,x)
     exact  = timestepping_state(exact0, 0, 0, params, mesh, funcs, sigs, sigt, N_exact, source_exact,0)
 
     y      = torch.zeros([num_t+1,num_x,N+1])
+    y = y.to('cuda')
     y0, sigs, sigt,source,CN     = initial_data_vanishing(N,num_x,num_mu,glw,mu,x)
 
     y_PN   = timestepping_state(y0, 0, 0, params, mesh, funcs, sigs, sigt, N, source,0)
@@ -389,10 +388,6 @@ funcs = {'filter'      : filter,
          'source_exact': source_exact,
          }
 
-if __name__ == "__main__":
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    NN_model = training(params,mesh,funcs,sigs_max)
-    # NN_model = mp.spawn(training, args = (num_gpus,params,mesh,
-    #          funcs,sigs_max), nprocs=num_gpus, join=True)
-    torch.save(NN_model, "model_scripted.pth")   
-    testing(params,mesh,funcs)
+NN_model = training(params,mesh,funcs,sigs_max)
+torch.save(NN_model, "model_scripted.pth")   
+testing(params,mesh,funcs)
