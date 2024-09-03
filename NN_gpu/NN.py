@@ -145,7 +145,7 @@ def timestepping_state(y0, filt_switch, NN_model, params, mesh, funcs, sigs, sig
     C = C.to(device)
     D = D.to(device)
     source = source.to(device)
-    
+    filter_func = filter_func.to(device)
     A = A .to(device)
     absA = absA.to(device)
 
