@@ -141,6 +141,14 @@ def timestepping_state(y0, filt_switch, NN_model, params, mesh, funcs, sigs, sig
     C = 0.5*dtdx*(absA - A)
     D = 0.5*dtdx*(absA + A)
 
+    B = B.to(device)
+    C = C.to(device)
+    D = D.to(device)
+    source = source.to(device)
+    
+    A = A .to(device)
+    absA = absA.to(device)
+
     y  = torch.zeros([batch_size,num_x,N+1],device=device)
     Dy = torch.zeros([batch_size,num_x,N+1],device=device)
 
@@ -151,7 +159,7 @@ def timestepping_state(y0, filt_switch, NN_model, params, mesh, funcs, sigs, sig
     d[1:num_x-1]  = 0.5/dx
     Der     = torch.diag(d,1) - torch.diag(d,-1)
     
-    sigf = torch.zeros([batch_size,num_x])
+    sigf = torch.zeros([batch_size,num_x],device=device)
     for k in range(1, num_t + 1):
         for j in range(batch_size):     
             if filt_switch == 1:
