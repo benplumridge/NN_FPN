@@ -308,7 +308,7 @@ def training(device,params,mesh,funcs,sigs_max):
 
 N       = 3
 N_exact = 63
-num_x   = 64
+num_x   = 32
 num_t   = num_x
 num_mu  = N_exact +1 
 
@@ -327,8 +327,8 @@ x       = torch.arange(xl,xr,dx)
 
 num_features = 2*N+2
 
-batch_size  = 60  ## make batch size a multiple of the number of Initial Conditions
-num_epochs  = 200
+batch_size  = 5  ## make batch size a multiple of the number of Initial Conditions
+num_epochs  = 10
 learning_rate = 1e6
 momentum_factor = 0.9
 sigs_max  = 1
