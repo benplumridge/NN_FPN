@@ -327,8 +327,8 @@ x       = torch.arange(xl,xr,dx)
 
 num_features = 2*N+2
 
-batch_size  = 5  ## make batch size a multiple of the number of Initial Conditions
-num_epochs  = 10
+batch_size  = 45  ## make batch size a multiple of the number of Initial Conditions
+num_epochs  = 200
 learning_rate = 1e6
 momentum_factor = 0.9
 sigs_max  = 1
