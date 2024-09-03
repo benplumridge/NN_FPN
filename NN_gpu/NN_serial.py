@@ -47,8 +47,8 @@ def initial_data_heaviside(N,num_x,num_mu,glw,mu,x):
     z     = torch.zeros([num_x,num_mu])
     z_leg = torch.zeros([num_x,N+1])
 
-    for n in range(0,num_mu):    
-        for m in range(0,num_x):         
+    for m in range(0,num_x):
+        for n in range(0,num_mu):        
             if x[m] > -0.2 and x[m] < .2:
                 z[m,n] = 1 
 
@@ -140,10 +140,9 @@ def timestepping_state(y0, filt_switch, NN_model, params, mesh, funcs, sigs, sig
     B = torch.eye(N+1) - dtdx*absA
     C = 0.5*dtdx*(absA - A)
     D = 0.5*dtdx*(absA + A)
-
-    y  = torch.zeros([batch_size,num_x,N+1],device=device)
-    Dy = torch.zeros([batch_size,num_x,N+1],device=device)
-
+    
+    y  = torch.zeros([num_x,N+1])
+    Dy = torch.zeros([num_x,N+1])
     y_prev = y0
     y  = y0
 
@@ -151,56 +150,62 @@ def timestepping_state(y0, filt_switch, NN_model, params, mesh, funcs, sigs, sig
     d[1:num_x-1]  = 0.5/dx
     Der     = torch.diag(d,1) - torch.diag(d,-1)
     
-    sigf = torch.zeros([batch_size,num_x])
+    sigf = torch.zeros(num_x)
     for k in range(1, num_t + 1):
-        for j in range(batch_size):     
-            if filt_switch == 1:
-                for n  in range(0,N+1):
-                    Dy[j,:,n] = torch.matmul(Der,y[j,:,n])
+        if filt_switch == 1:
+            for n  in range(0,N+1):
+                Dy[:,n] = torch.matmul(Der,y[:,n])
                       
-                for m in range(0,num_x):
-                    model_inputs = torch.concatenate((y[j,m,:]/N,CN[j]*Dy[j,m,:]))
-                    sigf[j,m] = NN_model(model_inputs)
+            for m in range(0,num_x):
+                model_inputs = torch.concatenate((y[m,:]/N,CN[m]*Dy[m,:]))
+                sigf[m] = NN_model(model_inputs)
             
         y1 = PN_solve(y_prev, num_x, sigf, sigs, sigt, A, absA, B, C, D, dt, 
-                      filter_func, N, source[k-1,:,:])
+                      filter_func, N, source[k-1,:, :])
         y = 0.5*(y1 + PN_solve( y1, num_x, sigf, sigs, sigt, A, absA, B, C, D, dt, 
-                               filter_func, N, source[k-1,:,:]))
+                               filter_func, N, source[k-1,:, :]))
         y_prev = y
 
-    return y[:,:,0]
+    return y[:,0]
 
 def PN_solve(y_prev, num_x, sigf, sigs, sigt, A, absA, B, C, D, dt, filter, N, source):
 
-    flux_limiter = torch.zeros([batch_size,num_x+2,N+1],device=device)
-    y = torch.zeros([batch_size,num_x,N+1],device=device)
-    y_expand = torch.zeros([batch_size,num_x+2,N+1],device=device)
-    y_expand[:,0,:] = y_prev[:,num_x-1,:]
-    y_expand[:,1:num_x+1,:] = y_prev
-    y_expand[:,num_x+1,:] = y_prev[:,0,:]
+    yT = y_prev.T
+    sourceT = source.T
+    flux_limiter = torch.zeros([N+1,num_x])
+    y = torch.zeros([N+1,num_x])
+    flux_limiter[:,0] = minmod(yT[:,1] - yT[:,0], yT[:,0] - yT[:,num_x-1])
+    for m in range(1, num_x - 1):
+        flux_limiter[:,m] = minmod(yT[:,m+1] - yT[:,m], yT[:,m] - yT[:,m-1])
+    
+    flux_limiter[:,num_x - 1] = minmod(yT[:,0] - yT[:,num_x-1], yT[:,num_x-1] - yT[:,num_x-2])
+    
+    y[:,0] = (torch.matmul(B,yT[:,0]) + torch.matmul(C,yT[:,1]) + torch.matmul(D,yT[:,num_x-1]) -
+               dt * sigf[0] * torch.matmul(torch.diag(filter[0:N+1]),yT[:,0]) -
+               dt * sigt[0] * torch.matmul(torch.eye(N+1), yT[:,0]) -
+               0.25 * dt * torch.matmul(A,flux_limiter[:,num_x-1] - 2 * flux_limiter[:,0] + flux_limiter[:,1]) +
+               0.25 * dt * torch.matmul(absA,flux_limiter[:,1] - flux_limiter[:,num_x - 1]) 
+               + dt * sourceT[:,0])
+    y[0,0] += dt * sigs[0] * y_prev[0,0]
 
-    flux_limiter[:,1:num_x+1,:] = minmod(y_expand[:,2:num_x+2,:] - y_expand[:,1:num_x+1,:], 
-                y_expand[:,1:num_x+1,:] - y_expand[:,0:num_x,:])
-    flux_limiter[:,0,:] = flux_limiter[:,num_x+1,:]
-    flux_limiter[:,num_x+1,:] = flux_limiter[:,0,:]
+    for m in range(1, num_x -1):
+        y[:,m] = (torch.matmul(B,yT[:,m]) + torch.matmul(C,yT[:,m+1]) + torch.matmul(D,yT[:,m-1]) -
+                   dt * sigf[m] * torch.matmul(torch.diag(filter[0:N+1]),yT[:,m]) -
+                   dt * sigt[m] * torch.matmul(torch.eye(N+1),yT[:,m]) -
+                   0.25 * dt * torch.matmul(A,flux_limiter[:,m-1] - 2 * flux_limiter[:,m] + flux_limiter[:,m+1]) +
+                   0.25 * dt * torch.matmul(absA,flux_limiter[:,m+1] - flux_limiter[:,m-1]) 
+                   + dt * sourceT[:, m])
+        y[0, m] += dt * sigs[m] * yT[0, m]
+    
+    y[:,num_x-1] = (torch.matmul(B,yT[:, num_x-1]) + torch.matmul(C,yT[:,0]) + torch.matmul(D,yT[:,num_x-2]) -
+                       dt * sigf[num_x - 1] * torch.matmul(torch.diag(filter[0:N+1]),yT[:,num_x-1]) -
+                       dt * sigt[num_x - 1] * torch.matmul(torch.eye(N+1),yT[:,num_x-1]) -
+                       0.25 * dt * torch.matmul(A,flux_limiter[:,num_x-2] - 2 * flux_limiter[:,num_x-1] + flux_limiter[:, 0]) +
+                       0.25 * dt * torch.matmul(absA,flux_limiter[:,0] - flux_limiter[:,num_x-2]) 
+                       + dt * sourceT[:,num_x-1])
+    y[0,num_x-1] += dt * sigs[num_x-1] * yT[0, num_x-1]
 
-    B_y = torch.matmul(y_expand[:, 1:num_x+1, :], B.T) 
-    C_y = torch.matmul(y_expand[:, 2:num_x+2, :], C.T)  
-    D_y = torch.matmul(y_expand[:, :num_x, :], D.T)     
-
-    sigf_y = dt * sigf[:, :, None] * filter[None, None, :N+1] * y_expand[:, 1:num_x+1, :] 
-    sigt_y = dt * sigt[:, None, None] * y_expand[:, 1:num_x+1, :]                         
-
-    flux_diff1 = flux_limiter[:, :num_x, :] - 2 * flux_limiter[:, 1:num_x+1, :] + flux_limiter[:, 2:num_x+2, :]
-    flux_diff2 = flux_limiter[:, 2:num_x+2, :] - flux_limiter[:, :num_x, :]
-    flux1 = 0.25 * dt * torch.matmul(flux_diff1, A.T)    
-    flux2 = 0.25 * dt * torch.matmul(flux_diff2, absA.T)   
-
-    y[:,0:num_x,:] = (B_y + C_y + D_y - sigf_y - sigt_y - flux1 + flux2 +
-    dt * source[None, :num_x, :])
-
-    y[:, :, 0] += dt * sigs[:, None] * y_expand[:, 1:num_x+1, 0]
-
+    y = y.T
     return y
 
 def testing(params,mesh,funcs):
@@ -239,6 +244,7 @@ def testing(params,mesh,funcs):
     plt.legend()
     plt.show() 
 
+
 def training(device,params,mesh,funcs,sigs_max):
 
     num_x   = params['num_x']
@@ -262,16 +268,17 @@ def training(device,params,mesh,funcs,sigs_max):
     #opt = optim.Adam(NN_model.parameters(), lr=learning_rate)
 
     num_IC = 3
-    y0 = torch.zeros([batch_size,num_x,N+1], device=device)
-    exact0 = torch.zeros([batch_size,num_x,N_exact+1], device=device)
-    y0[0:round(batch_size/num_IC),:,:]     = initial_data_linesource(N,num_x,num_mu,glw,mu,x)
-    exact0[0:round(batch_size/num_IC),:,:] = initial_data_linesource(N_exact,num_x,num_mu,glw,mu,x)
-        
-    y0[round(batch_size/num_IC)+1:round(2*batch_size/num_IC),:,:]     = initial_data_heaviside(N,num_x,num_mu,glw,mu,x)
-    exact0[round(batch_size/num_IC)+1:round(2*batch_size/num_IC),:,:] = initial_data_heaviside(N_exact,num_x,num_mu,glw,mu,x) 
+    y0 = torch.zeros([num_IC,num_x,N+1], device=device)
+    exact0 = torch.zeros([num_IC,num_x,N_exact+1], device=device)
 
-    y0[round(2*batch_size/num_IC)+1:round(3*batch_size/num_IC),:,:]     = initial_data_sin(N,num_x,num_mu,glw,mu,x)
-    exact0[round(2*batch_size/num_IC)+1:round(3*batch_size/num_IC),:,:] = initial_data_sin(N_exact,num_x,num_mu,glw,mu,x) 
+    y0[0,:,:]     = initial_data_linesource(N,num_x,num_mu,glw,mu,x)
+    exact0[0,:,:] = initial_data_linesource(N_exact,num_x,num_mu,glw,mu,x)
+        
+    y0[1,:,:]     = initial_data_heaviside(N,num_x,num_mu,glw,mu,x)
+    exact0[1,:,:] = initial_data_heaviside(N_exact,num_x,num_mu,glw,mu,x) 
+
+    y0[2,:,:]     = initial_data_sin(N,num_x,num_mu,glw,mu,x)
+    exact0[2,:,:] = initial_data_sin(N_exact,num_x,num_mu,glw,mu,x) 
 
     for l in range(num_epochs):
         opt.zero_grad()
@@ -281,11 +288,31 @@ def training(device,params,mesh,funcs,sigs_max):
         sigs.detach().numpy
         CN    = 1/(N*sigs+1) 
 
-        exact = timestepping_state(exact0, 0, 0, params, mesh, funcs, 
-                sigs, sigt, N_exact, source_exact,0)
-        y  = timestepping_state(y0, 1, NN_model, params, mesh, funcs,
-                sigs,sigt,N, source,CN)
-  
+        y = torch.zeros([batch_size,num_IC,num_x])#, requires_grad=True, device=device)
+        exact = torch.zeros([batch_size,num_IC,num_x])#, requires_grad=True, device=device)
+
+        for j in range(batch_size):
+            exact[j,0,:] = timestepping_state(exact0[0,:,:], 0, 0, params, 
+                mesh, funcs, sigs[j]*torch.ones(num_x), sigt[j]*torch.ones(num_x), 
+                N_exact, source_exact,0)
+            y[j,0,:] = timestepping_state(y0[0,:,:], 1, NN_model,
+                 params, mesh, funcs, sigs[j]*torch.ones(num_x),sigt[j]*torch.ones(num_x),
+                 N, source,CN[j]*torch.ones(num_x))
+            
+            exact[j,1,:] = timestepping_state(exact0[1,:,:], 0, 0, params, 
+                mesh, funcs, sigs[j]*torch.ones(num_x), sigt[j]*torch.ones(num_x), 
+                N_exact, source_exact,0)
+            y[j,1,:] = timestepping_state(y0[1,:,:], 1, NN_model,
+                 params, mesh, funcs, sigs[j]*torch.ones(num_x),sigt[j]*torch.ones(num_x),
+                 N, source,CN[j]*torch.ones(num_x))
+            
+            exact[j,2,:] = timestepping_state(exact0[2,:,:], 0, 0, params, 
+                mesh, funcs, sigs[j]*torch.ones(num_x), sigt[j]*torch.ones(num_x), 
+                N_exact, source_exact,0)
+            y[j,2,:] = timestepping_state(y0[2,:,:], 1, NN_model,
+                 params, mesh, funcs, sigs[j]*torch.ones(num_x),sigt[j]*torch.ones(num_x),
+                 N, source,CN[j]*torch.ones(num_x))
+        
         y  = y.to('cpu')
         exact = exact.to('cpu')
         loss = obj_func(y -exact)
@@ -296,8 +323,8 @@ def training(device,params,mesh,funcs,sigs_max):
     return NN_model
 
 N       = 3
-N_exact = 63
-num_x   = 64
+N_exact = 15
+num_x   = 32
 num_t   = num_x
 num_mu  = N_exact +1 
 
@@ -316,7 +343,8 @@ x       = torch.arange(xl,xr,dx)
 
 num_features = 2*N+2
 
-batch_size  = 9  ## make batch size a multiple of the number of Initial Conditions
+#batch size is number of sigs values per IC per epoch
+batch_size  = 10
 num_epochs  = 10
 learning_rate = 1e6
 momentum_factor = 0.9
@@ -357,13 +385,7 @@ funcs = {'filter'      : filter,
          'source_exact': source_exact,
          }
 
-
-I = input('Training  or Testing \n 0 - training \n 1- testing \n')
-if I == '0':
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    NN_model = training(device,params,mesh,funcs,sigs_max)
-    torch.save(NN_model, "model_scripted.pth")   
-if I == '1':
-    device = torch.device("cpu")
-    testing(params,mesh,funcs)
-
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+NN_model = training(device,params,mesh,funcs,sigs_max)
+torch.save(NN_model, "model_scripted.pth")   
+testing(params,mesh,funcs)
