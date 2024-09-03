@@ -317,7 +317,7 @@ x       = torch.arange(xl,xr,dx)
 num_features = 2*N+2
 
 batch_size  = 9  ## make batch size a multiple of the number of Initial Conditions
-num_epochs  = 10
+num_epochs  = 50
 learning_rate = 1e6
 momentum_factor = 0.9
 sigs_max  = 1
@@ -357,13 +357,8 @@ funcs = {'filter'      : filter,
          'source_exact': source_exact,
          }
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+NN_model = training(device,params,mesh,funcs,sigs_max)
+torch.save(NN_model, "model_scripted.pth")   
 
-I = input('Training  or Testing \n 0 - training \n 1- testing \n')
-if I == '0':
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    NN_model = training(device,params,mesh,funcs,sigs_max)
-    torch.save(NN_model, "model_scripted.pth")   
-if I == '1':
-    device = torch.device("cpu")
-    testing(params,mesh,funcs)
 
