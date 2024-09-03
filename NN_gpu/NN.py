@@ -260,7 +260,7 @@ def training(device,params,mesh,funcs,sigs_max):
     NN_model = SimpleNN(N,num_features)
     opt = optim.SGD(NN_model.parameters(), lr=learning_rate, momentum=momentum_factor)
     #opt = optim.Adam(NN_model.parameters(), lr=learning_rate)
-
+    NN_model = NN_model.to(device)
     num_IC = 3
     y0 = torch.zeros([batch_size,num_x,N+1], device=device)
     exact0 = torch.zeros([batch_size,num_x,N_exact+1], device=device)
@@ -316,8 +316,8 @@ x       = torch.arange(xl,xr,dx)
 
 num_features = 2*N+2
 
-batch_size  = 9  ## make batch size a multiple of the number of Initial Conditions
-num_epochs  = 50
+batch_size  = 15  ## make batch size a multiple of the number of Initial Conditions
+num_epochs  = 100
 learning_rate = 1e6
 momentum_factor = 0.9
 sigs_max  = 1
