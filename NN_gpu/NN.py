@@ -171,6 +171,7 @@ def timestepping_state(y0, filt_switch, NN_model, params, mesh, funcs, sigs, sig
                       
                 for m in range(0,num_x):
                     model_inputs = torch.concatenate((y[j,m,:]/N,CN[j]*Dy[j,m,:]))
+                    #model_inputs = torch.concatenate((CN[j]*y[j,m,:],CN[j]*Dy[j,m,:]))
                     sigf[j,m] = NN_model(model_inputs)
             
         y1 = PN_solve(y_prev, num_x, sigf, sigs, sigt, A, absA, B, C, D, dt, 
@@ -327,7 +328,7 @@ x       = torch.arange(xl,xr,dx)
 
 num_features = 2*N+2
 
-batch_size  = 45  ## make batch size a multiple of the number of Initial Conditions
+batch_size  = 36  ## make batch size a multiple of the number of Initial Conditions
 num_epochs  = 200
 learning_rate = 1e6
 momentum_factor = 0.9
