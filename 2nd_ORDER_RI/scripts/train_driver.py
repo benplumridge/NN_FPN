@@ -1,0 +1,25 @@
+import sys
+import os
+import numpy as np
+import torch
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
+from params_common import params
+from train_model import training
+
+
+params['num_IC']          = 5
+params['batch_size']      = 5 ## make batch size a multiple of the number of Initial Conditions
+params['num_epochs']      = 20
+params['learning_rate']   = 1e2
+params['momentum_factor'] = 0.9
+params['sigs_max']        = 1
+params['GD_optimizer']    = 'SGD'
+#params['GD_optimizer']    = 'Adam'
+params['tt_flag']    = 0
+params['IC_idx']     = 0
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+NN_model = training(device,params)
+N = params['N']
+filename = f"model_N{N}.pth"
+torch.save(NN_model, filename)   
