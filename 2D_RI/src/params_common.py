@@ -18,11 +18,11 @@ def filter_coefficients(filter_order,N,num_basis):
 
 
 N         = 5
-N_exact   = 11
+N_exact   = 37
 
 #note num_x and num_y refer to cell centers:  so there will be num_x + 1 nodes in x 
 num_x   = 100
-T       = 0.75
+T       = 0.5
 
 
 
