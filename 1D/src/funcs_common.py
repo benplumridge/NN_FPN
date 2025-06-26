@@ -25,8 +25,8 @@ class SimpleNN(nn.Module):
         # print("Flattened input shape:", x.shape)  # Debugging line
         x = self.bn1(x)
         x = torch.relu(self.hidden1(x))  # Activation hidden layer
-        # x = self.bn2(x)
-        # x = torch.relu(self.hidden2(x)) + x  # Activation hidden layer
+        x = self.bn2(x)
+        x = torch.relu(self.hidden2(x)) + x  # Activation hidden layer
         # x = self.bn3(x)
         # x = torch.relu(self.hidden3(x)) + x  # Activation hidden layer
         # x = self.bn4(x)
@@ -199,7 +199,7 @@ def PN_update(
                 (A_Dy_NN, sigt * y_NN, source_in, sigs * yflux), dim=-1
             )
             # print("Inputs shape:", inputs.shape)  # Debugging line
-
+            # exit(1)
             network_output = NN_model(inputs)
             sigf = network_output[:, :, 0]
 
