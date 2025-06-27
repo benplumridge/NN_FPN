@@ -7,14 +7,14 @@ class SimpleNN(nn.Module):
     def __init__(self, num_features, num_hidden):
         super(SimpleNN, self).__init__()
         self.hidden1 = nn.Linear(num_features, num_hidden)  # (inputs,hidden)
-        self.hidden2 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
-        self.hidden3 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
-        self.hidden4 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
+        # self.hidden2 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
+        # self.hidden3 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
+        # self.hidden4 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
 
         self.bn1 = nn.BatchNorm1d(num_features)
-        self.bn2 = nn.BatchNorm1d(num_hidden)
-        self.bn3 = nn.BatchNorm1d(num_hidden)
-        self.bn4 = nn.BatchNorm1d(num_hidden)
+        # self.bn2 = nn.BatchNorm1d(num_hidden)
+        # self.bn3 = nn.BatchNorm1d(num_hidden)
+        # self.bn4 = nn.BatchNorm1d(num_hidden)
         self.bn5 = nn.BatchNorm1d(num_hidden)
         self.output = nn.Linear(num_hidden, 1)  # (hidden,output)
 
@@ -25,8 +25,8 @@ class SimpleNN(nn.Module):
         # print("Flattened input shape:", x.shape)  # Debugging line
         x = self.bn1(x)
         x = torch.relu(self.hidden1(x))  # Activation hidden layer
-        x = self.bn2(x)
-        x = torch.relu(self.hidden2(x)) + x  # Activation hidden layer
+        # x = self.bn2(x)
+        # x = torch.relu(self.hidden2(x)) + x  # Activation hidden layer
         # x = self.bn3(x)
         # x = torch.relu(self.hidden3(x)) + x  # Activation hidden layer
         # x = self.bn4(x)
@@ -151,7 +151,7 @@ def timestepping(
         if IC_idx == 6:
             y = reeds_BC(y, num_x, N)
         y_prev = y
-
+    
     return y, sigf
 
 
@@ -194,18 +194,18 @@ def PN_update(
             yflux = yflux[:, :, None]
 
             y_NN, A_Dy_NN = preprocess_features(y_prev, A_Dy)
-            scaling = 1 / y_avg
-            inputs = scaling * torch.cat(
+            #scaling = 1 / y_avg
+            inputs = torch.cat(
                 (A_Dy_NN, sigt * y_NN, source_in, sigs * yflux), dim=-1
             )
             # print("Inputs shape:", inputs.shape)  # Debugging line
-            # exit(1)
+
             network_output = NN_model(inputs)
             sigf = network_output[:, :, 0]
-
+        #print(sigf.shape)
         if filter_type == 1:
             sigf0 = NN_model
-            sigf = sigf0 * torch.ones(batch_size, num_x)
+            sigf = sigf0*torch.ones(batch_size, num_x)
 
         if IC_idx == 6:
             sigf[:, 0] = sigf[:, 1]
@@ -252,7 +252,7 @@ def PN_update(
     y_update[:, :, 0] = (
         y_update[:, :, 0] + sigs[:, :, 0] * y_expand[:, 1 : num_x + 1, 0] + source
     )
-
+    #print('y update max = ', torch.max(y_update))
     return y_update, sigf
 
 
