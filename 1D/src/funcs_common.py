@@ -133,10 +133,10 @@ def PN_update(params, y_prev, A, absA, B, C, D,  N, source,
         if IC_idx == 6:
             # if idx_t < 500:
             #     sigf = torch.zeros(batch_size,num_x)
-            sigf= torch.clamp(sigf, max=400)
+            
             sigf[:,0] = sigf[:,1]
             sigf[:,num_x-1] = sigf[:,num_x-2]
-        
+        sigf= torch.clamp(sigf, max=400)
 
     if filt_switch == 2:
         sigf_const = params['sigf']

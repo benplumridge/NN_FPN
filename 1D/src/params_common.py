@@ -9,7 +9,7 @@ def filter_func(z,p):
 # N = 7: 16.1425
 # N = 9: 10.2298
 
-N       = 3
+N       = 9
 N_exact = 127
 num_x   = 128
 T       = 0.5
@@ -21,7 +21,6 @@ filter_type = 0
 
 xl      = -1
 xr      =  1
-
 
 filter_order = 4
 

@@ -127,5 +127,6 @@ def reeds(params):
     params['dt']    = dt
     params['x_edges']    = x_edges
     params['num_t'] = num_t
+    params['num_x'] = num_x
     
     return z, sigs, sigt,source, params
