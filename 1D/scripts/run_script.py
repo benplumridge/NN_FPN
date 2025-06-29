@@ -60,7 +60,7 @@ for n in [3,7,9]:
     params['filter'] = filter
     params['N']      = N
     for T in [6,12]:
-        num_x = 8*params['num_x']
+        num_x = 1024
         xr = 8
         xl = 0
         L = xr - xl
