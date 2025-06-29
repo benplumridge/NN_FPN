@@ -27,7 +27,7 @@ filter_order = 4
 num_x = params['num_x']
 dx    = params['dx']
 
-for IC_idx in [0,1,2]:
+for IC_idx in [2,0,1]:
     params['IC_idx'] = IC_idx
     for N in [3,7,9]:
         filter = torch.zeros(N_exact+1)
