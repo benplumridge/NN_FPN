@@ -127,7 +127,7 @@ def testing(params):
     return 0
 
 def load_model(N):
-    valid_N = {3, 5, 7, 9}
+    valid_N = {3, 7, 9}
     if N not in valid_N:
         raise ValueError(f"Invalid value for N: {N}. Expected one of {valid_N}.")
 
