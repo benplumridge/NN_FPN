@@ -49,7 +49,8 @@ for IC_idx in [0,1,2]:
             testing(params)
 
 params['IC_idx'] = 6
-for n in [3,7,9]:
+for N in [3,7,9]:
+    filter = torch.zeros(N_exact+1)
     filt_input        = torch.zeros(N+1)
     filt_input[0:N+1] = torch.arange(0,N+1,1)/(N+1)
     filter[0:N+1]     = -torch.log(filter_func(filt_input,filter_order))
@@ -60,6 +61,7 @@ for n in [3,7,9]:
     params['filter'] = filter
     params['N']      = N
     for T in [6,12]:
+        params['T'] = T
         num_x = 1024
         xr = 8
         xl = 0
