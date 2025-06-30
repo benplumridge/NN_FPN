@@ -7,30 +7,31 @@ class SimpleNN(nn.Module):
     def __init__(self, num_features, num_hidden):
         super(SimpleNN, self).__init__()
         self.hidden1 = nn.Linear(num_features, num_hidden)  # (inputs,hidden)
-        # self.hidden2 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
-        # self.hidden3 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
-        # self.hidden4 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
+        self.hidden2 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
+        self.hidden3 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
+        self.hidden4 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
 
-        self.bn1 = nn.BatchNorm1d(num_features)
-        # self.bn2 = nn.BatchNorm1d(num_hidden)
-        # self.bn3 = nn.BatchNorm1d(num_hidden)
-        # self.bn4 = nn.BatchNorm1d(num_hidden)
-        self.bn5 = nn.BatchNorm1d(num_hidden)
+        self.bn1 = nn.LayerNorm(num_features)
+        self.bn2 = nn.LayerNorm(num_hidden)
+        self.bn3 = nn.LayerNorm(num_hidden)
+        self.bn4 = nn.LayerNorm(num_hidden)
+        self.bn5 = nn.LayerNorm(num_hidden)
         self.output = nn.Linear(num_hidden, 1)  # (hidden,output)
+        print(self)
 
     def forward(self, x):
         # print("Input shape:", x.shape)  # Debugging line
         original_shape = x.shape
         x = torch.flatten(x, start_dim=0, end_dim=1)
         # print("Flattened input shape:", x.shape)  # Debugging line
-        x = self.bn1(x)
-        x = torch.relu(self.hidden1(x))  # Activation hidden layer
-        # x = self.bn2(x)
-        # x = torch.relu(self.hidden2(x)) + x  # Activation hidden layer
-        # x = self.bn3(x)
-        # x = torch.relu(self.hidden3(x)) + x  # Activation hidden layer
-        # x = self.bn4(x)
-        # x = torch.relu(self.hidden4(x)) + x  # Activation hidden layer
+        # x = self.bn1(x)
+        x = torch.tanh(self.hidden1(x))  # Activation hidden layer
+        x = self.bn2(x)
+        x = torch.tanh(self.hidden2(x)) + x  # Activation hidden layer
+        x = self.bn3(x)
+        x = torch.tanh(self.hidden3(x)) + x  # Activation hidden layer
+        x = self.bn4(x)
+        x = torch.tanh(self.hidden4(x)) + x  # Activation hidden layer
         x = self.bn5(x)
         x = torch.relu(self.output(x))  # Activation output layer
         output_shape = [original_shape[0], original_shape[1], 1]
@@ -151,7 +152,7 @@ def timestepping(
         if IC_idx == 6:
             y = reeds_BC(y, num_x, N)
         y_prev = y
-    
+
     return y, sigf
 
 
@@ -194,18 +195,25 @@ def PN_update(
             yflux = yflux[:, :, None]
 
             y_NN, A_Dy_NN = preprocess_features(y_prev, A_Dy)
-            #scaling = 1 / y_avg
-            inputs = torch.cat(
-                (A_Dy_NN, sigt * y_NN, source_in, sigs * yflux), dim=-1
-            )
+            # scaling = 1 / y_avg
+            scattering_in = NN_normalization(sigs * yflux)
+            source_in = NN_normalization(source_in)
+            psi_in = NN_normalization(sigt * y_NN)
+            A_Dy_NN = NN_normalization(A_Dy_NN)
+            # print("source_in.shape:", source_in.shape)
+            # print("scattering_in.shape:", scattering_in.shape)
+            # print("psi_in.shape:", psi_in.shape)
+            # print("A_Dy_NN.shape:", A_Dy_NN.shape)
+            # print("yflux.shape:", yflux.shape)
+            inputs = torch.cat((A_Dy_NN, psi_in, source_in, scattering_in), dim=-1)
             # print("Inputs shape:", inputs.shape)  # Debugging line
 
             network_output = NN_model(inputs)
             sigf = network_output[:, :, 0]
-        #print(sigf.shape)
+        # print(sigf.shape)
         if filter_type == 1:
             sigf0 = NN_model
-            sigf = sigf0*torch.ones(batch_size, num_x)
+            sigf = sigf0 * torch.ones(batch_size, num_x)
 
         if IC_idx == 6:
             sigf[:, 0] = sigf[:, 1]
@@ -252,8 +260,16 @@ def PN_update(
     y_update[:, :, 0] = (
         y_update[:, :, 0] + sigs[:, :, 0] * y_expand[:, 1 : num_x + 1, 0] + source
     )
-    #print('y update max = ', torch.max(y_update))
+    # print('y update max = ', torch.max(y_update))
     return y_update, sigf
+
+
+def NN_normalization(f):
+    f_mean = torch.mean(f, dim=[1, 2], keepdim=True)
+    f_std = torch.std(f, dim=[1, 2], keepdim=True)
+
+    f_normalized = (f - f_mean) / (f_std + 1e-10)
+    return f_normalized
 
 
 def preprocess_features(y, A_Dy):
@@ -272,8 +288,11 @@ def minmod(a, b):
 
 
 def obj_func(z):
-    obj_value = 0.5 * torch.sum(torch.mean(z**2, dim=[1]))
-    return obj_value
+    # print("shape:", z.shape)
+    # obj_value = 0.5 * torch.sum(torch.mean(z**2, dim=[1]))
+    # print("obj_value:", obj_value.shape)
+    # exit(1)
+    return torch.mean(z**2)
 
 
 def compute_cell_average(f, batch_size, num_x):

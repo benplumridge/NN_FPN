@@ -17,14 +17,14 @@ from train_model import training
 
 params["num_IC"] = 4
 params["batch_size"] = (
-    60  ## make batch size a multiple of the number of Initial Conditions
+    4  ## make batch size a multiple of the number of Initial Conditions
 )
 params["num_epochs"] = 200
-#params["num_hidden"] = 1
+params["num_hidden"] = 100
 params["learning_rate"] = 0.01
 params["momentum_factor"] = 0.9
 params["sigs_max"] = 1
-#params["GD_optimizer"] = "SGD"
+# params["GD_optimizer"] = "SGD"
 params["GD_optimizer"] = "Adam"
 params["tt_flag"] = 0
 params["IC_idx"] = 0
@@ -32,4 +32,4 @@ params["device"] = "cpu"  # torch.device("cuda" if torch.cuda.is_available() els
 
 NN_model = training(params)
 N = params["N"]
-torch.save(NN_model, f"model_N{N}.pth")
+torch.save(NN_model, f"trained_models/model_N{N}.pth")

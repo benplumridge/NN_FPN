@@ -16,9 +16,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "s
 from params_common import params
 from test_model import testing
 
-params['batch_size']  = 1
-params['tt_flag']  = 1
-params['device'] = 'cpu'
-params['IC_idx'] = IC_idx
+params["batch_size"] = 1
+params["tt_flag"] = 1
+params["device"] = "cpu"
+params["IC_idx"] = IC_idx
 
 testing(params)
