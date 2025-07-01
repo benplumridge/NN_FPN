@@ -21,7 +21,7 @@ params['device'] = device
 #Optimizer flag
 #0  - SGD
 #1  - Adam
-GD_opt_flag  = 0
+GD_opt_flag  = 1
 
 if GD_opt_flag ==0:     
     params['GD_optimizer']    = 'SGD'
