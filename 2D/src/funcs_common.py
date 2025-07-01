@@ -22,7 +22,7 @@ class SimpleNN(nn.Module):
     def forward(self, x):
         # print("Input shape:", x.shape)  # Debugging line
         original_shape = x.shape
-        x = torch.flatten(x, start_dim=0, end_dim=1)
+        x = torch.flatten(x, start_dim=0, end_dim=2)
         # print("Flattened input shape:", x.shape)  # Debugging line
         # x = self.bn1(x)
         x = torch.tanh(self.hidden1(x))  # Activation hidden layer
@@ -34,7 +34,7 @@ class SimpleNN(nn.Module):
         x = torch.tanh(self.hidden4(x)) + x  # Activation hidden layer
         x = self.bn5(x)
         x = torch.relu(self.output(x))  # Activation output layer
-        output_shape = [original_shape[0], original_shape[1], 1]
+        output_shape = [original_shape[0], original_shape[1], original_shape[2], 1]
         return x.reshape(output_shape)
 
 
