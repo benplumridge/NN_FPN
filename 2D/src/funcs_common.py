@@ -17,7 +17,7 @@ class SimpleNN(nn.Module):
         self.bn4 = nn.LayerNorm(num_hidden)
         self.bn5 = nn.LayerNorm(num_hidden)
         self.output = nn.Linear(num_hidden, 1)  # (hidden,output)
-        print(self)
+        # print(self)
 
     def forward(self, x):
         # print("Input shape:", x.shape)  # Debugging line
