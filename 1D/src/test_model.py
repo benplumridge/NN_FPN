@@ -13,6 +13,7 @@ def testing(params):
     num_t = params["num_t"]
     N_exact = params["N_exact"]
     N = params["N"]
+    T = params["T"]
     batch_size = params["batch_size"]
     x = params["x"]
     xl = params["xl"]
@@ -42,18 +43,25 @@ def testing(params):
 
     with torch.no_grad():
         if IC_idx == 0:
+            ic_type = "Vanishing cross-section"
             psi0_out, sigs_out, sigt_out, source_out = vanishing_cs(num_x, x_edges)
         elif IC_idx == 1:
+            ic_type = "Discontinuous cross-section"
             psi0_out, sigs_out, sigt_out, source_out = disc_cs(num_x, x_edges)
         elif IC_idx == 2:
+            ic_type = "Line source"
             psi0_out, sigs_out, sigt_out, source_out = gaussian(num_x, x_edges)
         elif IC_idx == 3:
+            ic_type = "Step"
             psi0_out, sigs_out, sigt_out, source_out = heaviside(num_x, x_edges)
         elif IC_idx == 4:
+            ic_type = "Bump"
             psi0_out, sigs_out, sigt_out, source_out = bump(num_x, x_edges)
         elif IC_idx == 5:
+            ic_type = "Discontinuous source"
             psi0_out, sigs_out, sigt_out, source_out = disc_source(num_x, x_edges)
         elif IC_idx == 6:
+            ic_type = "Reed's problem"
             psi0_out, sigs_out, sigt_out, source_out, params = reeds(params)
             x = params["x"]
             xl = params["xl"]
@@ -108,6 +116,9 @@ def testing(params):
 
     total_error_reduction = errorf / error0
     flux_error_reduction = flux_errf / flux_err0
+    print( 
+        ic_type, 'errors T =', T
+    )
 
     print(
         f"TOTAL:  P{N} error = ",
@@ -126,19 +137,19 @@ def testing(params):
         flux_error_reduction,
     )
 
-    sigf = sigf[0, :].detach().numpy()
-    exact = exact[0, :, 0].detach().numpy()
-    PN = PN[0, :, 0].detach().numpy()
-    FPN = FPN[0, :, 0].detach().numpy()
+    sigf  = sigf[0, :].detach().numpy()
+    exact = np.sqrt(2)*exact[0, :, 0].detach().numpy()
+    PN    = np.sqrt(2)*PN[0, :, 0].detach().numpy()
+    FPN   = np.sqrt(2)*FPN[0, :, 0].detach().numpy()
 
     plt.rcParams.update({"font.size": 16})
     fig, ax1 = plt.subplots()
 
     # Plot on the first y-axis (left side)
-    (line1,) = ax1.plot(x, exact / np.sqrt(2), label="Exact", color="r")
-    (line2,) = ax1.plot(x, PN / np.sqrt(2), linestyle="--", color="b", label="y_PN")
+    (line1,) = ax1.plot(x, exact, label="Exact", color="r")
+    (line2,) = ax1.plot(x, PN, linestyle="--", color="b", label="y_PN")
     (line3,) = ax1.plot(
-        x, FPN / np.sqrt(2), linestyle="-.", color="g", label="NN Filter"
+        x, FPN, linestyle="-.", color="g", label="NN Filter"
     )
 
     # Set labels and limits
@@ -154,14 +165,14 @@ def testing(params):
     lines = [line1, line2, line3, line4]  # Combine line objects
     labels = [line.get_label() for line in lines]  # Get labels for the lines
     # ax1.legend(lines, labels, loc='upper center', ncol=4, bbox_to_anchor=(0.5, 1.15))
-    # plt.show()
+    plt.show()
     plt.savefig("trained_models/plot.png")
 
     return 0
 
 
 def load_model(N):
-    valid_N = {3, 5, 7, 9}
+    valid_N = {3, 7, 9}
     if N not in valid_N:
         raise ValueError(f"Invalid value for N: {N}. Expected one of {valid_N}.")
 
