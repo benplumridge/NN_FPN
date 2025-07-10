@@ -116,24 +116,24 @@ def testing(params):
         sigt = compute_cell_average(sigt_edges, num_x, num_y, batch_size)
         source = compute_cell_average(source_edges, num_x, num_y, batch_size)
 
-        if IC_idx == 0:
-            exact_np = np.load("linesource_37.npy")
-            exact = torch.zeros(batch_size, num_y, num_x, num_basis_exact)
-            exact[0, :, :, :] = torch.from_numpy(exact_np)
+        # if IC_idx == 0:
+        #     exact_np = np.load("linesource_37.npy")
+        #     exact = torch.zeros(batch_size, num_y, num_x, num_basis_exact)
+        #     exact[0, :, :, :] = torch.from_numpy(exact_np)
 
-        elif IC_idx == 6:
-            if T == 1.6:
-                exact_np = np.load("lattice_37_T16.npy")
-            elif T == 3.2:
-                exact_np = np.load("lattice_37_T32.npy")
-            exact = torch.zeros(batch_size, num_y, num_x, num_basis_exact)
-            exact[0, :, :, :] = torch.from_numpy(exact_np)
+        # elif IC_idx == 6:
+        #     if T == 1.6:
+        #         exact_np = np.load("lattice_37_T16.npy")
+        #     elif T == 3.2:
+        #         exact_np = np.load("lattice_37_T32.npy")
+        #     exact = torch.zeros(batch_size, num_y, num_x, num_basis_exact)
+        #     exact[0, :, :, :] = torch.from_numpy(exact_np)
 
-        else:
-            exact = timestepping(
-                psi0, 0, 0, params, sigs, sigt, N_exact, num_basis_exact, source
-            )[0]
-            np.save(exact, "exact")
+        # else:
+        exact = timestepping(
+            psi0, 0, 0, params, sigs, sigt, N_exact, num_basis_exact, source
+        )[0]
+        np.save(exact, "exact")
 
         PN = timestepping(psi0, 0, 0, params, sigs, sigt, N, num_basis, source)[0]
         FPN, sigf = timestepping(
