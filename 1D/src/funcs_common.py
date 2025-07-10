@@ -203,7 +203,6 @@ def PN_update(
 
             inputs = torch.cat((A_Dy_NN, psi_in, source_in, scattering_in), dim=-1)
 
-
             network_output = NN_model(inputs)
             sigf = network_output[:, :, 0]
         # print(sigf.shape)

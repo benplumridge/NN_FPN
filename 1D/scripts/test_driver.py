@@ -1,9 +1,9 @@
-#IC INDEX
+# IC INDEX
 # 0 - Vanishing Cross Section
 # 1 - Discontinuous Cross Section
 # 2 - Gaussian
 # 3 - Heavi-side
-# 4 - Bump 
+# 4 - Bump
 # 5 - Discontinuous Source
 # 6 - Reeds
 IC_idx = 6

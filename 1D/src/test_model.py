@@ -116,9 +116,7 @@ def testing(params):
 
     total_error_reduction = errorf / error0
     flux_error_reduction = flux_errf / flux_err0
-    print( 
-        ic_type, 'errors T =', T
-    )
+    print(ic_type, "errors T =", T)
 
     print(
         f"TOTAL:  P{N} error = ",
@@ -137,10 +135,10 @@ def testing(params):
         flux_error_reduction,
     )
 
-    sigf  = sigf[0, :].detach().numpy()
-    exact = np.sqrt(2)*exact[0, :, 0].detach().numpy()
-    PN    = np.sqrt(2)*PN[0, :, 0].detach().numpy()
-    FPN   = np.sqrt(2)*FPN[0, :, 0].detach().numpy()
+    sigf = sigf[0, :].detach().numpy()
+    exact = np.sqrt(2) * exact[0, :, 0].detach().numpy()
+    PN = np.sqrt(2) * PN[0, :, 0].detach().numpy()
+    FPN = np.sqrt(2) * FPN[0, :, 0].detach().numpy()
 
     plt.rcParams.update({"font.size": 16})
     fig, ax1 = plt.subplots()
@@ -148,9 +146,7 @@ def testing(params):
     # Plot on the first y-axis (left side)
     (line1,) = ax1.plot(x, exact, label="Exact", color="r")
     (line2,) = ax1.plot(x, PN, linestyle="--", color="b", label="y_PN")
-    (line3,) = ax1.plot(
-        x, FPN, linestyle="-.", color="g", label="NN Filter"
-    )
+    (line3,) = ax1.plot(x, FPN, linestyle="-.", color="g", label="NN Filter")
 
     # Set labels and limits
     ax1.set_xlim([xl, xr])
