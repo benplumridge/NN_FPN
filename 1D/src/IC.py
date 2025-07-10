@@ -6,7 +6,7 @@ import torch.optim as optim
 def gaussian(num_x,x):
     z     = torch.zeros([num_x+1])
     c     = 0   
-    s     = 0.1
+    s     = 0.05
     sigs   = 0.5*torch.ones(num_x+1)  
     source = torch.zeros([num_x+1])
 
@@ -96,7 +96,7 @@ def reeds(params):
     sigs   = torch.zeros(num_x+1)  
     sigt   = torch.zeros(num_x+1) 
     source = torch.zeros([num_x+1]) 
-    z      = torch.ones([num_x+1])
+    z      = torch.zeros([num_x+1])
 
     reg1 = np.arange(num_x/4)
     reg2 = np.arange(num_x/4,3*num_x/8)

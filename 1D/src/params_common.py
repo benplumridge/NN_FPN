@@ -11,10 +11,10 @@ def filter_func(z, p):
 # N = 7: 16.1425
 # N = 9: 10.2298
 
-N = 9
+N = 3
 N_exact = 127
 num_x = 128
-T = 1
+T = 0.5
 
 # filter type
 # 0 - Neural network

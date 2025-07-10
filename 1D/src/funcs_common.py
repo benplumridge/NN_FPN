@@ -200,13 +200,9 @@ def PN_update(
             source_in = NN_normalization(source_in)
             psi_in = NN_normalization(sigt * y_NN)
             A_Dy_NN = NN_normalization(A_Dy_NN)
-            # print("source_in.shape:", source_in.shape)
-            # print("scattering_in.shape:", scattering_in.shape)
-            # print("psi_in.shape:", psi_in.shape)
-            # print("A_Dy_NN.shape:", A_Dy_NN.shape)
-            # print("yflux.shape:", yflux.shape)
+
             inputs = torch.cat((A_Dy_NN, psi_in, source_in, scattering_in), dim=-1)
-            # print("Inputs shape:", inputs.shape)  # Debugging line
+
 
             network_output = NN_model(inputs)
             sigf = network_output[:, :, 0]

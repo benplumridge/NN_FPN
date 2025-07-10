@@ -6,7 +6,7 @@
 # 4 - Bump 
 # 5 - Discontinuous Source
 # 6 - Reeds
-IC_idx = 0
+IC_idx = 6
 
 import sys
 import os
