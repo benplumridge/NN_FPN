@@ -20,11 +20,10 @@ params["batch_size"] = (
     4  ## make batch size a multiple of the number of Initial Conditions
 )
 params["num_epochs"] = 200
-params["num_hidden"] = 100
-params["learning_rate"] = 0.01
+params["learning_rate"] = 0.001  # N = 3 0.01  N = 7 and 9 0.001
 params["momentum_factor"] = 0.9
 params["sigs_max"] = 1
-# params["GD_optimizer"] = "SGD"
+#params["GD_optimizer"] = "SGD"
 params["GD_optimizer"] = "Adam"
 params["tt_flag"] = 0
 params["IC_idx"] = 0

@@ -4,7 +4,7 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 import numpy as np
 from funcs_common import SimpleNN, obj_func, timestepping, compute_cell_average
-from IC import gaussian, heaviside, bump, disc_source, vanishing_cs, disc_cs, reeds
+from IC import gaussian_testing, heaviside, bump, disc_source, vanishing_cs, disc_cs, reeds
 
 
 def testing(params):
@@ -30,6 +30,11 @@ def testing(params):
         NN_model.to(device)
         NN_model.eval()
 
+        for name, param in NN_model.named_parameters():
+            if 'weight' in name and param.requires_grad:
+                norm = torch.norm(param).item()
+                print(f"Layer: {name} | Weight norm: {norm:.4f}")
+
     elif filter_type == 1:
         if N == 3:
             sigf = 27.1199
@@ -43,14 +48,14 @@ def testing(params):
 
     with torch.no_grad():
         if IC_idx == 0:
+            ic_type = "Gaussian"
+            psi0_out, sigs_out, sigt_out, source_out = gaussian_testing(num_x, x_edges)
+        elif IC_idx == 1:
             ic_type = "Vanishing cross-section"
             psi0_out, sigs_out, sigt_out, source_out = vanishing_cs(num_x, x_edges)
-        elif IC_idx == 1:
+        elif IC_idx == 2:
             ic_type = "Discontinuous cross-section"
             psi0_out, sigs_out, sigt_out, source_out = disc_cs(num_x, x_edges)
-        elif IC_idx == 2:
-            ic_type = "Line source"
-            psi0_out, sigs_out, sigt_out, source_out = gaussian(num_x, x_edges)
         elif IC_idx == 3:
             ic_type = "Step"
             psi0_out, sigs_out, sigt_out, source_out = heaviside(num_x, x_edges)
@@ -114,6 +119,7 @@ def testing(params):
             obj_func(FPN[:, :, 0] - exact[:, :, 0]) / obj_func(exact[:, :, 0])
         )
 
+    print(torch.max(FPN[:,:,-1]))
     total_error_reduction = errorf / error0
     flux_error_reduction = flux_errf / flux_err0
     print(ic_type, "errors T =", T)
@@ -135,18 +141,25 @@ def testing(params):
         flux_error_reduction,
     )
 
-    sigf = sigf[0, :].detach().numpy()
-    exact = np.sqrt(2) * exact[0, :, 0].detach().numpy()
-    PN = np.sqrt(2) * PN[0, :, 0].detach().numpy()
-    FPN = np.sqrt(2) * FPN[0, :, 0].detach().numpy()
+    sigf  = sigf[0, :].detach().numpy()
+    exact = exact[0, :, :].detach().numpy()
+    PN    = PN[0, :, :].detach().numpy()
+    FPN   = FPN[0, :, :].detach().numpy()
+
+
+    exact_flux = np.sqrt(2) * exact[:, 0]
+    PN_flux    = np.sqrt(2) * PN[:, 0]
+    FPN_flux   = np.sqrt(2) * FPN[:, 0]
+    
+
 
     plt.rcParams.update({"font.size": 16})
     fig, ax1 = plt.subplots()
 
     # Plot on the first y-axis (left side)
-    (line1,) = ax1.plot(x, exact, label="Exact", color="r")
-    (line2,) = ax1.plot(x, PN, linestyle="--", color="b", label="y_PN")
-    (line3,) = ax1.plot(x, FPN, linestyle="-.", color="g", label="NN Filter")
+    (line1,) = ax1.plot(x, exact_flux, label="Exact", color="r")
+    (line2,) = ax1.plot(x, PN_flux, linestyle="--", color="b", label="y_PN")
+    (line3,) = ax1.plot(x, FPN_flux, linestyle="-.", color="g", label="NN Filter")
 
     # Set labels and limits
     ax1.set_xlim([xl, xr])
@@ -162,7 +175,19 @@ def testing(params):
     labels = [line.get_label() for line in lines]  # Get labels for the lines
     # ax1.legend(lines, labels, loc='upper center', ncol=4, bbox_to_anchor=(0.5, 1.15))
     plt.show()
-    plt.savefig("trained_models/plot.png")
+    #plt.savefig("trained_models/plot.png")
+
+    # fig, ax = plt.subplots()  # Create figure and axes
+
+    # for j in range(N+1):
+    #     ax.plot(x, FPN[:, j], label=f'{j}')
+
+    # ax.legend(loc='upper left', bbox_to_anchor=(1.0, 1.0))  # Puts legend outside top-right
+    # # ax.legend()
+    # ax.set_xlim([xl, xr])
+    # ax.set_title('FPN Moments')
+    # ax.set_xlabel('x')
+    # plt.show()
 
     return 0
 

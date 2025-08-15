@@ -1,12 +1,12 @@
 # IC INDEX
-# 0 - Vanishing Cross Section
-# 1 - Discontinuous Cross Section
-# 2 - Gaussian
+# 0 - Gaussian
+# 1 - Vanishing Cross Section
+# 2 - Discontinuous Cross Section
 # 3 - Heavi-side
 # 4 - Bump
 # 5 - Discontinuous Source
 # 6 - Reeds
-IC_idx = 6
+IC_idx = 0
 
 import sys
 import os

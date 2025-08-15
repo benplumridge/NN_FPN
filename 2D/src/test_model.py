@@ -28,6 +28,7 @@ def testing(params):
     device = params["device"]
     T = params["T"]
     filter_type = params["filter_type"]
+    sigf_const = params["sigf_const"]
     show_plots = params["show_plots"]
     show_sym_errors = params["show_sym_errors"]
     show_slices = params["show_slices"]
@@ -48,6 +49,10 @@ def testing(params):
             sigf = 13.62
         else:
             sigf = 10
+        NN_model = sigf
+
+    elif filter_type == 2:
+        sigf = sigf_const
         NN_model = sigf
 
     with torch.no_grad():
@@ -116,24 +121,24 @@ def testing(params):
         sigt = compute_cell_average(sigt_edges, num_x, num_y, batch_size)
         source = compute_cell_average(source_edges, num_x, num_y, batch_size)
 
-        # if IC_idx == 0:
-        #     exact_np = np.load("linesource_37.npy")
-        #     exact = torch.zeros(batch_size, num_y, num_x, num_basis_exact)
-        #     exact[0, :, :, :] = torch.from_numpy(exact_np)
+        if IC_idx == 0:
+            exact_np = np.load("linesource_37.npy")
+            exact = torch.zeros(batch_size, num_y, num_x, num_basis_exact)
+            exact[0, :, :, :] = torch.from_numpy(exact_np)
 
-        # elif IC_idx == 6:
-        #     if T == 1.6:
-        #         exact_np = np.load("lattice_37_T16.npy")
-        #     elif T == 3.2:
-        #         exact_np = np.load("lattice_37_T32.npy")
-        #     exact = torch.zeros(batch_size, num_y, num_x, num_basis_exact)
-        #     exact[0, :, :, :] = torch.from_numpy(exact_np)
+        elif IC_idx == 6:
+            if T == 1.6:
+                exact_np = np.load("lattice_37_T16.npy")
+            elif T == 3.2:
+                exact_np = np.load("lattice_37_T32.npy")
+            exact = torch.zeros(batch_size, num_y, num_x, num_basis_exact)
+            exact[0, :, :, :] = torch.from_numpy(exact_np)
 
-        # else:
-        exact = timestepping(
-            psi0, 0, 0, params, sigs, sigt, N_exact, num_basis_exact, source
-        )[0]
-        np.save(exact, "exact")
+        else:
+            exact = timestepping(
+                psi0, 0, 0, params, sigs, sigt, N_exact, num_basis_exact, source
+            )[0]
+            # np.save(exact, "exact")
 
         PN = timestepping(psi0, 0, 0, params, sigs, sigt, N, num_basis, source)[0]
         FPN, sigf = timestepping(
@@ -248,42 +253,49 @@ def testing(params):
             x, sigf[plot_idx, :], linestyle=":", color="m", label=r"$\sigma_f$"
         )
         lines = [line1, line2, line3, line4]
+        # lines = [line1, line2, line3]
         labels = [line.get_label() for line in lines]
-        ax_slice0.tick_params(axis="x", bottom=False, labelbottom=False)
-        # ax_slice0.legend(lines, labels, bbox_to_anchor=(1.08, 1.15), ncol=4, frameon=False)
+        ax_slice0.tick_params(axis="x", bottom=True, labelbottom=True)
+        ax_slice0.legend(lines, labels, bbox_to_anchor=(1.08, 1.15), ncol=4, frameon=False)
 
         fig_slice45, ax_slice45 = plt.subplots()
-        plt.xlim(xl, xr)
+        xl45 = -np.sqrt(2)
+        xr45 =  np.sqrt(2)
+        plt.xlim(xl45, xr45)
         exact45 = exact[np.arange(exact.shape[0]), np.arange(exact.shape[0])]
-        PN45 = PN[np.arange(PN.shape[0]), np.arange(PN.shape[0])]
-        FPN45 = FPN[np.arange(FPN.shape[0]), np.arange(FPN.shape[0])]
-        (line1,) = ax_slice45.plot(x, exact45, color="r", label=f"$P_{{{N_exact}}}$")
+        PN45   = PN[np.arange(PN.shape[0]), np.arange(PN.shape[0])]
+        FPN45  = FPN[np.arange(FPN.shape[0]), np.arange(FPN.shape[0])]
+        sigf45 = sigf[np.arange(FPN.shape[0]), np.arange(FPN.shape[0])]
+        x45      = torch.linspace(xl45, xr45, num_x)
+
+        (line1,) = ax_slice45.plot(x45, exact45, color="r", label=f"$P_{{{N_exact}}}$")
         (line2,) = ax_slice45.plot(
-            x, PN45, linestyle="--", color="b", label=f"$P_{{{N}}}$"
+            x45, PN45, linestyle="--", color="b", label=f"$P_{{{N}}}$"
         )
         (line3,) = ax_slice45.plot(
-            x, FPN45, linestyle="-.", color="g", label=f"$FP_{{{N}}}$"
+            x45, FPN45, linestyle="-.", color="g", label=f"$FP_{{{N}}}$"
         )
         ax_slice45_sigf = ax_slice45.twinx()
         (line4,) = ax_slice45_sigf.plot(
-            x, sigf[plot_idx, :], linestyle=":", color="m", label=r"$\sigma_f$"
+            x45, sigf45, linestyle=":", color="m", label=r"$\sigma_f$"
         )
         lines = [line1, line2, line3, line4]
+        # lines = [line1, line2, line3]
         labels = [line.get_label() for line in lines]
-        ax_slice45.tick_params(axis="x", bottom=False, labelbottom=False)
-        # ax_slice45.legend(lines, labels, bbox_to_anchor=(1.08, 1.15), ncol=4, frameon=False)
+        ax_slice45.tick_params(axis="x", bottom=True, labelbottom=True)
+        ax_slice45.legend(lines, labels, bbox_to_anchor=(1.08, 1.15), ncol=4, frameon=False)
 
     fig_sig, ax_sig = plt.subplots(constrained_layout=True)
     contour_sig = ax_sig.contourf(y, x, sigf, levels, cmap=cmap_sigf)
-    # ax_sig.set_title(fr"$\sigma_f$, $t = {T}$")
+    ax_sig.set_title(fr"$\sigma_f$, $t = {T}$")
     ax_sig.tick_params(
         axis="x", which="both", bottom=False, top=False, labelbottom=False
     )
     ax_sig.tick_params(axis="y", which="both", left=False, right=False, labelleft=False)
     fig_sig.colorbar(contour_sig, ax=ax_sig, orientation="vertical", shrink=0.8)
 
-    # if show_plots == 1:
-    #     plt.show()
+    if show_plots == 1:
+        plt.show()
 
 
 def load_model(N):

@@ -24,15 +24,15 @@ class SimpleNN(nn.Module):
         original_shape = x.shape
         x = torch.flatten(x, start_dim=0, end_dim=1)
         # print("Flattened input shape:", x.shape)  # Debugging line
-        # x = self.bn1(x)
-        x = torch.tanh(self.hidden1(x))  # Activation hidden layer
+        x = self.bn1(x)
+        x = torch.tanh(self.hidden1(x))      # Activation hidden layer
         x = self.bn2(x)
-        x = torch.tanh(self.hidden2(x)) + x  # Activation hidden layer
-        x = self.bn3(x)
-        x = torch.tanh(self.hidden3(x)) + x  # Activation hidden layer
-        x = self.bn4(x)
-        x = torch.tanh(self.hidden4(x)) + x  # Activation hidden layer
-        x = self.bn5(x)
+        #x = torch.tanh(self.hidden2(x)) + x  # Activation hidden layer
+        # x = self.bn3(x)
+        # x = torch.tanh(self.hidden3(x)) + x  # Activation hidden layer
+        # x = self.bn4(x)
+        # x = torch.tanh(self.hidden4(x)) + x  # Activation hidden layer
+        # x = self.bn5(x)
         x = torch.relu(self.output(x))  # Activation output layer
         output_shape = [original_shape[0], original_shape[1], 1]
         return x.reshape(output_shape)
@@ -124,7 +124,7 @@ def timestepping(
 
         # boundary conditions for Reeds problem: reflecting at x = 0 and vacauum at x = 8
         if IC_idx == 6:
-            y1 = reeds_BC(y1, num_x, N)
+            y1 = reeds_BC(y1,N)
 
         y2_update, sigf = PN_update(
             params,
@@ -150,7 +150,7 @@ def timestepping(
 
         # boundary conditions for Reeds problem: reflecting at x = 0 and vacauum at x = 8
         if IC_idx == 6:
-            y = reeds_BC(y, num_x, N)
+            y = reeds_BC(y, N)
         y_prev = y
 
     return y, sigf
@@ -184,28 +184,53 @@ def PN_update(
 
     filter_func = params["filter"]
 
+
+    # flux_limiter = torch.zeros([batch_size, num_x + 2, N + 1], device=device)
+    # # y_update = torch.zeros([batch_size, num_x, N + 1], device=device)
+    # y_expand = torch.zeros([batch_size, num_x + 2, N + 1], device=device)
+
+    # y_expand[:, 1 : num_x + 1, :] = y_prev
+    # if IC_idx != 6:
+    #     y_expand[:, 0, :] = y_prev[:, num_x - 1, :]
+    #     y_expand[:, num_x + 1, :] = y_prev[:, 0, :]
+
+    # flux_limiter[:, 1 : num_x + 1, :] = minmod(
+    #     y_expand[:, 2 : num_x + 2, :] - y_expand[:, 1 : num_x + 1, :],
+    #     y_expand[:, 1 : num_x + 1, :] - y_expand[:, 0:num_x, :],
+    # )
+
+    # flux_limiter[:, 0, :] = flux_limiter[:, num_x + 1, :]
+    # flux_limiter[:, num_x + 1, :] = flux_limiter[:, 1, :]
+
+    # B_y = torch.matmul(y_expand[:, 1 : num_x + 1, :], B.T)
+    # C_y = torch.matmul(y_expand[:, 2 : num_x + 2, :], C.T)
+    # D_y = torch.matmul(y_expand[:, :num_x, :], D.T)
+
+    # flux_diff1 = (
+    #     flux_limiter[:, :num_x, :]
+    #     - 2 * flux_limiter[:, 1 : num_x + 1, :]
+    #     + flux_limiter[:, 2 : num_x + 2, :]
+    # )
+    # flux_diff2 = flux_limiter[:, 2 : num_x + 2, :] - flux_limiter[:, :num_x, :]
+    # flux1 = 0.25 * torch.matmul(flux_diff1, A.T)
+    # flux2 = 0.25 * torch.matmul(flux_diff2, absA.T)
+    # A_Dy = B_y + C_y + D_y - flux1 + flux2
+
     sigf = torch.zeros([batch_size, num_x], device=device)
+
     if filt_switch == 1:
         if filter_type == 0:
             y_reshaped = y_prev.permute(0, 2, 1)
             Dy_reshaped = torch.matmul(y_reshaped, Der)
             Dy = Dy_reshaped.permute(0, 2, 1)
-            A_Dy = torch.matmul(Dy, A.T)
+            A_Dy_in = torch.matmul(Dy, A.T)
             yflux = y_prev[:, :, 0]
             yflux = yflux[:, :, None]
-
-            y_NN, A_Dy_NN = preprocess_features(y_prev, A_Dy)
-            # scaling = 1 / y_avg
-            scattering_in = NN_normalization(sigs * yflux)
-            source_in = NN_normalization(source_in)
-            psi_in = NN_normalization(sigt * y_NN)
-            A_Dy_NN = NN_normalization(A_Dy_NN)
-
-            inputs = torch.cat((A_Dy_NN, psi_in, source_in, scattering_in), dim=-1)
-
+            # print("Max of abs A_Dy = ", torch.max(torch.abs(A_Dy)))
+            inputs = preprocess_features(sigt*y_prev, A_Dy_in, sigs*yflux, source_in)
             network_output = NN_model(inputs)
             sigf = network_output[:, :, 0]
-        # print(sigf.shape)
+
         if filter_type == 1:
             sigf0 = NN_model
             sigf = sigf0 * torch.ones(batch_size, num_x)
@@ -239,8 +264,7 @@ def PN_update(
     C_y = torch.matmul(y_expand[:, 2 : num_x + 2, :], C.T)
     D_y = torch.matmul(y_expand[:, :num_x, :], D.T)
 
-    sigf_y = sigf[:, :, None] * y_expand[:, 1 : num_x + 1, :] * filter_func[: N + 1]
-    sigt_y = sigt * y_expand[:, 1 : num_x + 1, :]
+    
 
     flux_diff1 = (
         flux_limiter[:, :num_x, :]
@@ -250,30 +274,43 @@ def PN_update(
     flux_diff2 = flux_limiter[:, 2 : num_x + 2, :] - flux_limiter[:, :num_x, :]
     flux1 = 0.25 * torch.matmul(flux_diff1, A.T)
     flux2 = 0.25 * torch.matmul(flux_diff2, absA.T)
-    y_update = B_y + C_y + D_y - sigf_y - sigt_y - flux1 + flux2
+    A_Dy = B_y + C_y + D_y - flux1 + flux2
 
+    sigt_y    = sigt * y_expand[:, 1 : num_x + 1, :]
+    y_update  = A_Dy - sigt_y
+
+    if filt_switch == 1 or filt_switch == 2: 
+        y_update = y_update - sigf[:, :, None] * y_prev * filter_func
+    
     y_update[:, :, 0] = (
         y_update[:, :, 0] + sigs[:, :, 0] * y_expand[:, 1 : num_x + 1, 0] + source
     )
-    # print('y update max = ', torch.max(y_update))
+
     return y_update, sigf
 
 
+def preprocess_features(sigt_y, A_Dy, scattering, source):
+    # y_temp    = sigt_y.clone()
+    # A_Dy_temp = A_Dy.clone()
+    # sigt_y[:,:,1::2]  = torch.abs(y_temp[:,:,1::2])
+    # A_Dy[:,:,1::2]    = torch.abs(A_Dy_temp[:,:,1::2])
+    # sigt_y_NN     = NN_normalization(sigt_y)
+    # A_Dy_NN       = NN_normalization(A_Dy)
+
+    sigt_y_NN     = NN_normalization(torch.abs(sigt_y))
+    A_Dy_NN       = NN_normalization(torch.abs(A_Dy))
+    scattering_NN = NN_normalization(scattering)
+    source_NN     = NN_normalization(source)
+
+    inputs = torch.cat((A_Dy_NN, sigt_y_NN, source_NN, scattering_NN), dim=-1)
+    return inputs
+
 def NN_normalization(f):
-    f_mean = torch.mean(f, dim=[1, 2], keepdim=True)
-    f_std = torch.std(f, dim=[1, 2], keepdim=True)
-
+    f_mean = torch.mean(f, dim=[1], keepdim=True)
+    f_std = torch.std(f, dim=[1], keepdim=True)
     f_normalized = (f - f_mean) / (f_std + 1e-10)
-    return f_normalized
-
-
-def preprocess_features(y, A_Dy):
-    y_NN = y.clone()
-    y_NN[..., 1::2] = torch.abs(y[..., 1::2])
-    A_Dy_NN = A_Dy.clone()
-    A_Dy_NN[..., 1::2] = torch.abs(A_Dy[..., 1::2])
-    return y_NN, A_Dy_NN
-
+    #return f_normalized
+    return f
 
 def minmod(a, b):
     mm = torch.zeros_like(a)
@@ -283,10 +320,6 @@ def minmod(a, b):
 
 
 def obj_func(z):
-    # print("shape:", z.shape)
-    # obj_value = 0.5 * torch.sum(torch.mean(z**2, dim=[1]))
-    # print("obj_value:", obj_value.shape)
-    # exit(1)
     return torch.mean(z**2)
 
 
@@ -298,7 +331,7 @@ def compute_cell_average(f, batch_size, num_x):
     return f_average
 
 
-def reeds_BC(z, num_x, N):
+def reeds_BC(z, N):
     for n in range(0, N, 2):
         z[:, 0, n] = z[:, 1, n]
     for n in range(1, N + 1, 2):

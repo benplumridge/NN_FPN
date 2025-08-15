@@ -21,23 +21,27 @@ def filter_coefficients(filter_order, N, num_basis):
     return filter_expand
 
 
-N = 9
+N = 3
 N_exact = 37
 
 # note num_x and num_y refer to cell centers:  so there will be num_x + 1 nodes in x
 num_x = 100
-T = 0.75
+T = 0.5
 
 filter_order = 4
 
 # filter type
 # 0 - Neural network
-# 1 - Constant
+# 1 - Constant trainedd
+# 2 - Constant input
 filter_type = 0
 
+#constant filter strength for filter_type = 2
+sigf_const =  15
+
 show_sym_errors = 0
-show_plots = 0
-show_slices = 0
+show_plots = 1
+show_slices = 1
 
 xl = -1
 xr = 1
@@ -46,7 +50,8 @@ yl = -1
 yr = 1
 
 num_features = 2 * (N + 1) + 2
-num_hidden = num_features // 2
+#num_hidden = num_features // 2
+num_hidden = 100
 
 num_basis = (N + 1) * (N + 2) // 2
 num_basis_exact = (N_exact + 1) * (N_exact + 2) // 2
@@ -106,9 +111,10 @@ params = {
     "filter": filter,
     "filter_order": filter_order,
     "filter_type": filter_type,
+     "sigf_const" : sigf_const,
     "num_basis_exact": num_basis_exact,
     "plot_idx": plot_idx,
     "show_plots": show_plots,
     "show_sym_errors": show_sym_errors,
-    "show_slices": show_slices,
+    "show_slices": show_slices
 }

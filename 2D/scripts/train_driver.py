@@ -33,5 +33,5 @@ elif GD_opt_flag == 1:
 
 NN_model = training(params)
 N = params["N"]
-filename = f"model_N{N}.pth"
+filename = f"trained_models/model_N{N}.pth"
 torch.save(NN_model, filename)

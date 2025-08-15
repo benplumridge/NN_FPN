@@ -106,6 +106,7 @@ def training(params):
         loss = obj_func(FPN[:, :, :, 0] - exact[:, :, :, 0])
         loss.backward()
         opt.step()
+        print(torch.sqrt(loss))
         print("epoch", l)
         if torch.isnan(loss):
             print("NaN loss detected. Stopping training.")

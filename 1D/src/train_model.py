@@ -1,7 +1,7 @@
 import torch
 import torch.optim as optim
 from funcs_common import SimpleNN, obj_func, timestepping, compute_cell_average
-from IC import gaussian, heaviside, bump, disc_source
+from IC import gaussian_training, heaviside, bump, disc_source
 
 
 def training(params):
@@ -18,8 +18,10 @@ def training(params):
     num_features = params["num_features"]
     num_hidden = params["num_hidden"]
     GD_optimizer = params["GD_optimizer"]
+    weight_decay = params["weight_decay"]
     x_edges = params["x_edges"]
     device = params["device"]
+
 
     NN_model = SimpleNN(num_features, num_hidden)
     NN_model = NN_model.to(device)
@@ -28,7 +30,7 @@ def training(params):
             NN_model.parameters(), lr=learning_rate, momentum=momentum_factor
         )
     elif GD_optimizer == "Adam":
-        opt = optim.Adam(NN_model.parameters(), lr=learning_rate)
+        opt = optim.Adam(NN_model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
     psi0_edges = torch.zeros([batch_size, num_x + 1], device=device)
     source_edges = torch.zeros([batch_size, num_x + 1], device=device)
@@ -37,7 +39,7 @@ def training(params):
     reg3 = torch.arange(round(2 * batch_size / num_IC), round(3 * batch_size / num_IC))
     reg4 = torch.arange(round(3 * batch_size / num_IC), round(4 * batch_size / num_IC))
 
-    psi0_edges[reg1, :] = gaussian(num_x, x_edges)[0].to(device)
+    psi0_edges[reg1, :] = gaussian_training(num_x, x_edges)[0].to(device)
     psi0_edges[reg2, :] = heaviside(num_x, x_edges)[0].to(device)
     psi0_edges[reg3, :] = bump(num_x, x_edges)[0].to(device)
     disc_source_output = disc_source(num_x, x_edges)

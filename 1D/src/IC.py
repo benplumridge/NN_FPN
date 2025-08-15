@@ -4,7 +4,21 @@ import torch.nn as nn
 import torch.optim as optim
 
 
-def gaussian(num_x, x):
+def gaussian_training(num_x, x):
+    z = torch.zeros([num_x + 1])
+    c = 0
+    s = 0.10
+    sigs = 0.5 * torch.ones(num_x + 1)
+    source = torch.zeros([num_x + 1])
+
+    scale = 1 / np.sqrt(2 * np.pi * s**2)
+    z = scale * torch.exp(-((x - c) ** 2) / (2 * s**2))
+
+    sigt = sigs
+
+    return z, sigs, sigt, source
+
+def gaussian_testing(num_x, x):
     z = torch.zeros([num_x + 1])
     c = 0
     s = 0.05
@@ -17,7 +31,6 @@ def gaussian(num_x, x):
     sigt = sigs
 
     return z, sigs, sigt, source
-
 
 def heaviside(num_x, x):
     z = torch.zeros([num_x + 1])

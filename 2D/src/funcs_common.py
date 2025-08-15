@@ -24,23 +24,21 @@ class SimpleNN(nn.Module):
         original_shape = x.shape
         x = torch.flatten(x, start_dim=0, end_dim=2)
         # print("Flattened input shape:", x.shape)  # Debugging line
-        # x = self.bn1(x)
-        x = torch.tanh(self.hidden1(x))  # Activation hidden layer
+        x = self.bn1(x)
+        x = torch.tanh(self.hidden1(x))      # Activation hidden layer
         x = self.bn2(x)
-        x = torch.tanh(self.hidden2(x)) + x  # Activation hidden layer
-        x = self.bn3(x)
-        x = torch.tanh(self.hidden3(x)) + x  # Activation hidden layer
-        x = self.bn4(x)
-        x = torch.tanh(self.hidden4(x)) + x  # Activation hidden layer
-        x = self.bn5(x)
+        # x = torch.tanh(self.hidden2(x)) + x  # Activation hidden layer
+        # x = self.bn3(x)
+        # x = torch.tanh(self.hidden3(x)) + x  # Activation hidden layer
+        # x = self.bn4(x)
+        # x = torch.tanh(self.hidden4(x)) + x  # Activation hidden layer
+        # x = self.bn5(x)
         x = torch.relu(self.output(x))  # Activation output layer
         output_shape = [original_shape[0], original_shape[1], original_shape[2], 1]
         return x.reshape(output_shape)
 
 
 def obj_func(z):
-    # obj_value = torch.sum(torch.mean(z**2, dim=[1, 2]))
-    # print(torch.sqrt(obj_value))
     return torch.mean(z**2)
 
 
@@ -257,11 +255,15 @@ def preprocess_features(N, psi, dxpsi, dypsi, scattering, source, params):
 
         index += num_m
 
-    scattering_in = NN_normalization(scattering[:, :, :, None])
-    source_in = NN_normalization(source[:, :, :, None])
-    psi_in = NN_normalization(psi_norms)
-    dpsi_in = NN_normalization(dpsi_norms)
+    # scattering_in = NN_normalization(scattering[:, :, :, None])
+    # source_in = NN_normalization(source[:, :, :, None])
+    # psi_in = NN_normalization(psi_norms)
+    # dpsi_in = NN_normalization(dpsi_norms)
 
+    scattering_in = scattering[:, :, :, None]
+    source_in = source[:, :, :, None]
+    psi_in    = psi_norms
+    dpsi_in   = dpsi_norms
     inputs = torch.cat((psi_in, dpsi_in, scattering_in, source_in), dim=-1)
 
     return inputs
@@ -318,7 +320,7 @@ def PN_update(
     fluxes, A_dxpsi, A_dypsi = upwind_flux(N, num_basis, psi_prev, params)
 
     if tt_flag == 0:
-        sigt_psi = sigt[:, None, None, None] * psi_prev
+        sigt_psi   = sigt[:, None, None, None] * psi_prev
         scattering = sigs[:, None, None] ** psi_prev[:, :, :, 0]
     elif tt_flag == 1:
         sigt_psi = sigt[:, :, :, None] * psi_prev
@@ -334,7 +336,7 @@ def PN_update(
                 N, sigt_psi, A_dxpsi, A_dypsi, scattering, source, params
             )
             sigf = NN_model(inputs).squeeze(-1)
-        if filter_type == 1:
+        if filter_type == 1 or filter_type == 2:
             sigf0 = NN_model
             sigf = sigf0 * torch.ones(batch_size, num_y, num_x)
 
@@ -355,7 +357,7 @@ def PN_update(
     psi_update[:, 0, -1, :] = 0.5 * (psi_update[:, 0, -2, :] + psi_update[:, 1, -1, :])
     psi_update[:, -1, 0, :] = 0.5 * (psi_update[:, -2, 0, :] + psi_update[:, -1, 1, :])
     psi_update[:, -1, -1, :] = 0.5 * (
-        psi_update[:, -2, -1, :] + psi_update[:, -1, -2, :]
+    psi_update[:, -2, -1, :] + psi_update[:, -1, -2, :]
     )
 
     return psi_update, sigf
