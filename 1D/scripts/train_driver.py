@@ -17,10 +17,10 @@ from train_model import training
 
 params["num_IC"] = 4
 params["batch_size"] = (
-    4  ## make batch size a multiple of the number of Initial Conditions
+    60  ## make batch size a multiple of the number of Initial Conditions
 )
-params["num_epochs"] = 200
-params["learning_rate"] = 0.001  # N = 3 0.01  N = 7 and 9 0.001
+params["num_epochs"] = 500
+params["learning_rate"] = 1e-1  # lr= 10  for N = 3,  l3 = 100 for N = 7,9 
 params["momentum_factor"] = 0.9
 params["sigs_max"] = 1
 #params["GD_optimizer"] = "SGD"

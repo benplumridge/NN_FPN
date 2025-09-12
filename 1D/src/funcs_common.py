@@ -2,44 +2,58 @@ import torch
 import numpy as np
 import torch.nn as nn
 
-
 class SimpleNN(nn.Module):
-    def __init__(self, num_features, num_hidden):
+    def __init__(self,num_features, num_hidden):
         super(SimpleNN, self).__init__()
-        self.hidden1 = nn.Linear(num_features, num_hidden)  # (inputs,hidden)
-        self.hidden2 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
-        self.hidden3 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
-        self.hidden4 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
-
-        self.bn1 = nn.LayerNorm(num_features)
-        self.bn2 = nn.LayerNorm(num_hidden)
-        self.bn3 = nn.LayerNorm(num_hidden)
-        self.bn4 = nn.LayerNorm(num_hidden)
-        self.bn5 = nn.LayerNorm(num_hidden)
-        self.output = nn.Linear(num_hidden, 1)  # (hidden,output)
-        print(self)
+        self.hidden = nn.Linear(num_features, num_hidden)  # (inputs,hidden)
+        self.output = nn.Linear(num_hidden, 1)      # (hidden,output)
 
     def forward(self, x):
-        # print("Input shape:", x.shape)  # Debugging line
         original_shape = x.shape
         x = torch.flatten(x, start_dim=0, end_dim=1)
-        # print("Flattened input shape:", x.shape)  # Debugging line
-        x = self.bn1(x)
-        x = torch.tanh(self.hidden1(x))      # Activation hidden layer
-        x = self.bn2(x)
-        #x = torch.tanh(self.hidden2(x)) + x  # Activation hidden layer
-        # x = self.bn3(x)
-        # x = torch.tanh(self.hidden3(x)) + x  # Activation hidden layer
-        # x = self.bn4(x)
-        # x = torch.tanh(self.hidden4(x)) + x  # Activation hidden layer
-        # x = self.bn5(x)
-        x = torch.relu(self.output(x))  # Activation output layer
+        x = torch.relu(self.hidden(x))  # Activation hidden layer
+        x = torch.relu(self.output(x))  # Activation output layer 
         output_shape = [original_shape[0], original_shape[1], 1]
         return x.reshape(output_shape)
 
 
+# class SimpleNN(nn.Module):
+#     def __init__(self, num_features, num_hidden):
+#         super(SimpleNN, self).__init__()
+#         self.hidden1 = nn.Linear(num_features, num_hidden)  # (inputs,hidden)
+#         # self.hidden2 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
+#         # self.hidden3 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
+#         # self.hidden4 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
+
+#         #self.bn1 = nn.LayerNorm(num_features)
+#         self.bn2 = nn.LayerNorm(num_hidden)
+#         # self.bn3 = nn.LayerNorm(num_hidden)
+#         # self.bn4 = nn.LayerNorm(num_hidden)
+#         # self.bn5 = nn.LayerNorm(num_hidden)
+#         self.output = nn.Linear(num_hidden, 1)  # (hidden,output)
+#         print(self)
+
+#     def forward(self, x):
+#         # print("Input shape:", x.shape)  # Debugging line
+#         original_shape = x.shape
+#         x = torch.flatten(x, start_dim=0, end_dim=1)
+#         # print("Flattened input shape:", x.shape)  # Debugging line
+#         #x = self.bn1(x)
+#         x = torch.tanh(self.hidden1(x))      # Activation hidden layer
+#         x = self.bn2(x)
+#         #x = torch.tanh(self.hidden2(x)) + x  # Activation hidden layer
+#         # x = self.bn3(x)
+#         # x = torch.tanh(self.hidden3(x)) + x  # Activation hidden layer
+#         # x = self.bn4(x)
+#         # x = torch.tanh(self.hidden4(x)) + x  # Activation hidden layer
+#         # x = self.bn5(x)
+#         x = torch.relu(self.output(x))  # Activation output layer
+#         output_shape = [original_shape[0], original_shape[1], 1]
+#         return x.reshape(output_shape)
+
+
 def timestepping(
-    y0, filt_switch, NN_model, params, sigs, sigt, N, source, batch_size, device
+    y0, filter_type, NN_model, params, sigs, sigt, N, source, batch_size, device
 ):
     dt = params["dt"]
     dx = params["dx"]
@@ -79,16 +93,6 @@ def timestepping(
     y_prev = torch.zeros([batch_size, num_x, N + 1], device=device)
     y_prev[:, :, 0] = y0
     y = y_prev
-    d = torch.zeros(num_x - 1)
-    d[0 : num_x - 1] = 0.5 / dx
-    Der = torch.diag(d, 1) - torch.diag(d, -1)
-    Der[0, num_x - 1] = -0.5 / dx
-    Der[num_x - 1, 0] = 0.5 / dx
-
-    Der = Der.to(device)
-
-    y_avg = torch.mean(y0, dim=1)
-    y_avg = y_avg[:, None, None]
     source_in = source[:, :, None]
 
     if tt_flag == 0:
@@ -110,11 +114,7 @@ def timestepping(
             D,
             N,
             source,
-            batch_size,
-            device,
-            filt_switch,
-            y_avg,
-            Der,
+            filter_type,
             NN_model,
             source_in,
             sigt_in,
@@ -136,11 +136,7 @@ def timestepping(
             D,
             N,
             source,
-            batch_size,
-            device,
-            filt_switch,
-            y_avg,
-            Der,
+            filter_type,
             NN_model,
             source_in,
             sigt_in,
@@ -166,85 +162,19 @@ def PN_update(
     D,
     N,
     source,
-    batch_size,
-    device,
-    filt_switch,
-    y_avg,
-    Der,
+    filter_type,
     NN_model,
     source_in,
     sigt,
     sigs,
 ):
-
+    batch_size     = params["batch_size"]
+    device   = params["device"]
     IC_idx = params["IC_idx"]
-
     num_x = params["num_x"]
-    filter_type = params["filter_type"]
-
     filter_func = params["filter"]
 
-
-    # flux_limiter = torch.zeros([batch_size, num_x + 2, N + 1], device=device)
-    # # y_update = torch.zeros([batch_size, num_x, N + 1], device=device)
-    # y_expand = torch.zeros([batch_size, num_x + 2, N + 1], device=device)
-
-    # y_expand[:, 1 : num_x + 1, :] = y_prev
-    # if IC_idx != 6:
-    #     y_expand[:, 0, :] = y_prev[:, num_x - 1, :]
-    #     y_expand[:, num_x + 1, :] = y_prev[:, 0, :]
-
-    # flux_limiter[:, 1 : num_x + 1, :] = minmod(
-    #     y_expand[:, 2 : num_x + 2, :] - y_expand[:, 1 : num_x + 1, :],
-    #     y_expand[:, 1 : num_x + 1, :] - y_expand[:, 0:num_x, :],
-    # )
-
-    # flux_limiter[:, 0, :] = flux_limiter[:, num_x + 1, :]
-    # flux_limiter[:, num_x + 1, :] = flux_limiter[:, 1, :]
-
-    # B_y = torch.matmul(y_expand[:, 1 : num_x + 1, :], B.T)
-    # C_y = torch.matmul(y_expand[:, 2 : num_x + 2, :], C.T)
-    # D_y = torch.matmul(y_expand[:, :num_x, :], D.T)
-
-    # flux_diff1 = (
-    #     flux_limiter[:, :num_x, :]
-    #     - 2 * flux_limiter[:, 1 : num_x + 1, :]
-    #     + flux_limiter[:, 2 : num_x + 2, :]
-    # )
-    # flux_diff2 = flux_limiter[:, 2 : num_x + 2, :] - flux_limiter[:, :num_x, :]
-    # flux1 = 0.25 * torch.matmul(flux_diff1, A.T)
-    # flux2 = 0.25 * torch.matmul(flux_diff2, absA.T)
-    # A_Dy = B_y + C_y + D_y - flux1 + flux2
-
-    sigf = torch.zeros([batch_size, num_x], device=device)
-
-    if filt_switch == 1:
-        if filter_type == 0:
-            y_reshaped = y_prev.permute(0, 2, 1)
-            Dy_reshaped = torch.matmul(y_reshaped, Der)
-            Dy = Dy_reshaped.permute(0, 2, 1)
-            A_Dy_in = torch.matmul(Dy, A.T)
-            yflux = y_prev[:, :, 0]
-            yflux = yflux[:, :, None]
-            # print("Max of abs A_Dy = ", torch.max(torch.abs(A_Dy)))
-            inputs = preprocess_features(sigt*y_prev, A_Dy_in, sigs*yflux, source_in)
-            network_output = NN_model(inputs)
-            sigf = network_output[:, :, 0]
-
-        if filter_type == 1:
-            sigf0 = NN_model
-            sigf = sigf0 * torch.ones(batch_size, num_x)
-
-        if IC_idx == 6:
-            sigf[:, 0] = sigf[:, 1]
-            sigf[:, num_x - 1] = sigf[:, num_x - 2]
-
-    if filt_switch == 2:
-        sigf_const = params["sigf"]
-        sigf = sigf_const * torch.ones(batch_size, num_x)
-
     flux_limiter = torch.zeros([batch_size, num_x + 2, N + 1], device=device)
-    y_update = torch.zeros([batch_size, num_x, N + 1], device=device)
     y_expand = torch.zeros([batch_size, num_x + 2, N + 1], device=device)
 
     y_expand[:, 1 : num_x + 1, :] = y_prev
@@ -264,8 +194,6 @@ def PN_update(
     C_y = torch.matmul(y_expand[:, 2 : num_x + 2, :], C.T)
     D_y = torch.matmul(y_expand[:, :num_x, :], D.T)
 
-    
-
     flux_diff1 = (
         flux_limiter[:, :num_x, :]
         - 2 * flux_limiter[:, 1 : num_x + 1, :]
@@ -276,10 +204,61 @@ def PN_update(
     flux2 = 0.25 * torch.matmul(flux_diff2, absA.T)
     A_Dy = B_y + C_y + D_y - flux1 + flux2
 
+    sigf = torch.zeros([batch_size, num_x], device=device)
+
+    if filter_type in (1,2):
+        yflux = y_prev[:, :, 0]
+        yflux = yflux[:, :, None]
+        inputs = preprocess_features(A_Dy, sigt*y_prev, sigs*yflux, source_in, filter_type)
+        network_output = NN_model(inputs)
+        sigf = network_output[:, :, 0]
+
+    if filter_type == 3:
+            sigf0 = NN_model()
+            sigf = sigf0 * torch.ones(batch_size, num_x)
+
+    if IC_idx == 6:
+        sigf[:, 0] = sigf[:, 1]
+        sigf[:, num_x - 1] = sigf[:, num_x - 2]
+
+    y_update = torch.zeros([batch_size, num_x, N + 1], device=device)
+
+    # flux_limiter = torch.zeros([batch_size, num_x + 2, N + 1], device=device)   
+    # y_expand = torch.zeros([batch_size, num_x + 2, N + 1], device=device)
+
+    # y_expand[:, 1 : num_x + 1, :] = y_prev
+    # if IC_idx != 6:
+    #     y_expand[:, 0, :] = y_prev[:, num_x - 1, :]
+    #     y_expand[:, num_x + 1, :] = y_prev[:, 0, :]
+
+    # flux_limiter[:, 1 : num_x + 1, :] = minmod(
+    #     y_expand[:, 2 : num_x + 2, :] - y_expand[:, 1 : num_x + 1, :],
+    #     y_expand[:, 1 : num_x + 1, :] - y_expand[:, 0:num_x, :],
+    # )
+
+    # flux_limiter[:, 0, :] = flux_limiter[:, num_x + 1, :]
+    # flux_limiter[:, num_x + 1, :] = flux_limiter[:, 1, :]
+
+    # B_y = torch.matmul(y_expand[:, 1 : num_x + 1, :], B.T)
+    # C_y = torch.matmul(y_expand[:, 2 : num_x + 2, :], C.T)
+    # D_y = torch.matmul(y_expand[:, :num_x, :], D.T)
+
+    
+
+    # flux_diff1 = (
+    #     flux_limiter[:, :num_x, :]
+    #     - 2 * flux_limiter[:, 1 : num_x + 1, :]
+    #     + flux_limiter[:, 2 : num_x + 2, :]
+    # )
+    # flux_diff2 = flux_limiter[:, 2 : num_x + 2, :] - flux_limiter[:, :num_x, :]
+    # flux1 = 0.25 * torch.matmul(flux_diff1, A.T)
+    # flux2 = 0.25 * torch.matmul(flux_diff2, absA.T)
+    # A_Dy = B_y + C_y + D_y - flux1 + flux2
+
     sigt_y    = sigt * y_expand[:, 1 : num_x + 1, :]
     y_update  = A_Dy - sigt_y
 
-    if filt_switch == 1 or filt_switch == 2: 
+    if filter_type in (1,2,3):
         y_update = y_update - sigf[:, :, None] * y_prev * filter_func
     
     y_update[:, :, 0] = (
@@ -289,20 +268,25 @@ def PN_update(
     return y_update, sigf
 
 
-def preprocess_features(sigt_y, A_Dy, scattering, source):
-    # y_temp    = sigt_y.clone()
-    # A_Dy_temp = A_Dy.clone()
-    # sigt_y[:,:,1::2]  = torch.abs(y_temp[:,:,1::2])
-    # A_Dy[:,:,1::2]    = torch.abs(A_Dy_temp[:,:,1::2])
-    # sigt_y_NN     = NN_normalization(sigt_y)
-    # A_Dy_NN       = NN_normalization(A_Dy)
+def preprocess_features(A_Dy, sigt_y, scattering, source, filter_type):
+    scattering_NN = NN_normalization(torch.abs(scattering))
+    source_NN     = NN_normalization(torch.abs(source))
 
-    sigt_y_NN     = NN_normalization(torch.abs(sigt_y))
-    A_Dy_NN       = NN_normalization(torch.abs(A_Dy))
-    scattering_NN = NN_normalization(scattering)
-    source_NN     = NN_normalization(source)
+    if filter_type == 1:
+        A_Dy_NN       = NN_normalization(torch.abs(A_Dy))
+        sigt_y_NN     = NN_normalization(torch.abs(sigt_y))
+         
+    elif filter_type  == 2:
+        A_Dy_temp = A_Dy.clone()
+        y_temp    = sigt_y.clone()
+        
+        A_Dy[:,:,1::2]    = torch.abs(A_Dy_temp[:,:,1::2])
+        sigt_y[:,:,1::2]  = torch.abs(y_temp[:,:,1::2])
+        
+        sigt_y_NN     = NN_normalization(sigt_y)
+        A_Dy_NN       = NN_normalization(A_Dy)
 
-    inputs = torch.cat((A_Dy_NN, sigt_y_NN, source_NN, scattering_NN), dim=-1)
+    inputs = torch.cat((A_Dy_NN, sigt_y_NN,  scattering_NN, source_NN), dim=-1)
     return inputs
 
 def NN_normalization(f):
@@ -319,9 +303,9 @@ def minmod(a, b):
     return mm
 
 
-def obj_func(z):
-    return torch.mean(z**2)
-
+def obj_func(z,dx):  
+    #return torch.mean(z**2)
+    return (dx * z.pow(2).sum(dim=1)).mean()
 
 def compute_cell_average(f, batch_size, num_x):
     f_average = torch.zeros(batch_size, num_x)

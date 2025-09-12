@@ -9,6 +9,8 @@ def training(params):
     num_x = params["num_x"]
     N_exact = params["N_exact"]
     N = params["N"]
+    L = params["L"]
+    dx = params["dx"]
     num_IC = params["num_IC"]
     sigs_max = params["sigs_max"]
     num_epochs = params["num_epochs"]
@@ -21,6 +23,7 @@ def training(params):
     weight_decay = params["weight_decay"]
     x_edges = params["x_edges"]
     device = params["device"]
+    filter_type = params["filter_type"]
 
 
     NN_model = SimpleNN(num_features, num_hidden)
@@ -46,24 +49,24 @@ def training(params):
     psi0_edges[reg4, :] = disc_source_output[0].to(device)
     source_edges[reg4, :] = disc_source_output[3].to(device)
 
-    psi0 = compute_cell_average(psi0_edges, batch_size, num_x)
+    psi0   = compute_cell_average(psi0_edges, batch_size, num_x)
     source = compute_cell_average(source_edges, batch_size, num_x)
 
     for l in range(num_epochs):
         opt.zero_grad()
         sigs = torch.rand(batch_size) * sigs_max
-        sigt = (1 - sigs) * torch.rand(batch_size)
+        sigt = (sigs_max - sigs) * torch.rand(batch_size)
 
         exact = timestepping(
             psi0, 0, 0, params, sigs, sigt, N_exact, source, batch_size, device
         )[0]
         psi = timestepping(
-            psi0, 1, NN_model, params, sigs, sigt, N, source, batch_size, device
+            psi0, filter_type, NN_model, params, sigs, sigt, N, source, batch_size, device
         )[0]
 
         psi = psi.to("cpu")
         exact = exact.to("cpu")
-        loss = obj_func(psi[:, :, 0] - exact[:, :, 0])
+        loss = obj_func(psi[:, :, 0] - exact[:, :, 0],dx)
         loss.backward()
         opt.step()
 
@@ -71,5 +74,13 @@ def training(params):
         if torch.isnan(loss):
             print("NaN loss detected. Stopping training.")
             break
+
+        # total_norm = 0.0
+        # for p in NN_model.parameters():
+        #     if p.grad is not None:
+        #         param_norm = p.grad.data.norm(2)  # L2 norm of this parameter's gradient
+        #         total_norm += param_norm.item() ** 2
+        # total_norm = total_norm ** 0.5
+        # print(f"Gradient norm: {total_norm:.4e}")
 
     return NN_model

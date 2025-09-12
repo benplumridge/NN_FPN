@@ -23,19 +23,20 @@ def testing(params):
     device = params["device"]
     IC_idx = params["IC_idx"]
     filter_type = params["filter_type"]
+    show_plot   = params["show_plot"]
 
-    if filter_type == 0:
+    if filter_type in (1,2):
         model_filename = load_model(N)
         NN_model = torch.load(model_filename, map_location=torch.device(device))
         NN_model.to(device)
         NN_model.eval()
 
-        for name, param in NN_model.named_parameters():
-            if 'weight' in name and param.requires_grad:
-                norm = torch.norm(param).item()
-                print(f"Layer: {name} | Weight norm: {norm:.4f}")
+        # for name, param in NN_model.named_parameters():
+        #     if 'weight' in name and param.requires_grad:
+        #         norm = torch.norm(param).item()
+        #         print(f"Layer: {name} | Weight norm: {norm:.4f}")
 
-    elif filter_type == 1:
+    elif filter_type == 3:
         if N == 3:
             sigf = 27.1199
         elif N == 7:
@@ -51,10 +52,10 @@ def testing(params):
             ic_type = "Gaussian"
             psi0_out, sigs_out, sigt_out, source_out = gaussian_testing(num_x, x_edges)
         elif IC_idx == 1:
-            ic_type = "Vanishing cross-section"
+            ic_type = "Vanishing_cross_section"
             psi0_out, sigs_out, sigt_out, source_out = vanishing_cs(num_x, x_edges)
         elif IC_idx == 2:
-            ic_type = "Discontinuous cross-section"
+            ic_type = "Discontinuous_cross_section"
             psi0_out, sigs_out, sigt_out, source_out = disc_cs(num_x, x_edges)
         elif IC_idx == 3:
             ic_type = "Step"
@@ -66,7 +67,7 @@ def testing(params):
             ic_type = "Discontinuous source"
             psi0_out, sigs_out, sigt_out, source_out = disc_source(num_x, x_edges)
         elif IC_idx == 6:
-            ic_type = "Reed's problem"
+            ic_type = "Reeds"
             psi0_out, sigs_out, sigt_out, source_out, params = reeds(params)
             x = params["x"]
             xl = params["xl"]
@@ -107,19 +108,18 @@ def testing(params):
         )
 
         error0 = torch.sqrt(
-            obj_func(PN - exact[:, :, 0 : N + 1]) / obj_func(exact[:, :, 0 : N + 1])
+            obj_func(PN - exact[:, :, 0 : N + 1],dx) / obj_func(exact[:, :, 0 : N + 1],dx)
         )
         errorf = torch.sqrt(
-            obj_func(FPN - exact[:, :, 0 : N + 1]) / obj_func(exact[:, :, 0 : N + 1])
+            obj_func(FPN - exact[:, :, 0 : N + 1],dx) / obj_func(exact[:, :, 0 : N + 1],dx)
         )
         flux_err0 = torch.sqrt(
-            obj_func(PN[:, :, 0] - exact[:, :, 0]) / obj_func(exact[:, :, 0])
+            obj_func(PN[:, :, 0] - exact[:, :, 0],dx) / obj_func(exact[:, :, 0],dx)
         )
         flux_errf = torch.sqrt(
-            obj_func(FPN[:, :, 0] - exact[:, :, 0]) / obj_func(exact[:, :, 0])
+            obj_func(FPN[:, :, 0] - exact[:, :, 0],dx) / obj_func(exact[:, :, 0],dx)
         )
 
-    print(torch.max(FPN[:,:,-1]))
     total_error_reduction = errorf / error0
     flux_error_reduction = flux_errf / flux_err0
     print(ic_type, "errors T =", T)
@@ -154,7 +154,8 @@ def testing(params):
 
 
     plt.rcParams.update({"font.size": 16})
-    fig, ax1 = plt.subplots()
+    
+    fig, ax1 = plt.subplots(figsize=(6, 5), constrained_layout = True)
 
     # Plot on the first y-axis (left side)
     (line1,) = ax1.plot(x, exact_flux, label="Exact", color="r")
@@ -164,8 +165,8 @@ def testing(params):
     # Set labels and limits
     ax1.set_xlim([xl, xr])
     # ax1.set_ylabel('Scalar Flux')
-    # ax1.set_xlabel('x')
-
+    ax1.set_xlabel('z', fontsize=18)
+    
     # Create a second y-axis that shares the same x-axis
     ax2 = ax1.twinx()
 
@@ -174,8 +175,19 @@ def testing(params):
     lines = [line1, line2, line3, line4]  # Combine line objects
     labels = [line.get_label() for line in lines]  # Get labels for the lines
     # ax1.legend(lines, labels, loc='upper center', ncol=4, bbox_to_anchor=(0.5, 1.15))
-    plt.show()
-    #plt.savefig("trained_models/plot.png")
+    
+    if show_plot == 1:
+        plt.show()
+
+    if IC_idx ==6:
+        T_int = int(T)
+    else: 
+        T_int = int(10*T)
+    # format T with a fixed number of decimals (say 3)
+    filename = f"results/{ic_type}/P{N}_t{T_int}.png"
+
+    plt.savefig(filename, bbox_inches="tight", dpi=300)
+
 
     # fig, ax = plt.subplots()  # Create figure and axes
 
@@ -188,7 +200,7 @@ def testing(params):
     # ax.set_title('FPN Moments')
     # ax.set_xlabel('x')
     # plt.show()
-
+    plt.close()
     return 0
 
 
