@@ -293,8 +293,8 @@ def NN_normalization(f):
     f_mean = torch.mean(f, dim=[1], keepdim=True)
     f_std = torch.std(f, dim=[1], keepdim=True)
     f_normalized = (f - f_mean) / (f_std + 1e-10)
-    #return f_normalized
-    return f
+    return f_normalized
+    #return f
 
 def minmod(a, b):
     mm = torch.zeros_like(a)
