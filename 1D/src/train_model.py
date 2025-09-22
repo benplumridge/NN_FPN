@@ -2,7 +2,7 @@ import torch
 import torch.optim as optim
 from funcs_common import SimpleNN, obj_func, timestepping, compute_cell_average
 from IC import gaussian_training, heaviside, bump, disc_source
-
+import wandb
 
 def training(params):
 
@@ -52,6 +52,12 @@ def training(params):
     psi0   = compute_cell_average(psi0_edges, batch_size, num_x)
     source = compute_cell_average(source_edges, batch_size, num_x)
 
+    # Initialize wandb
+    wandb_init = True
+    if wandb_init:
+        wandb.init(project=f"1D_P{N}_training")
+
+
     for l in range(num_epochs):
         opt.zero_grad()
         sigs = torch.rand(batch_size) * sigs_max
@@ -74,6 +80,9 @@ def training(params):
         if torch.isnan(loss):
             print("NaN loss detected. Stopping training.")
             break
+            
+        if wandb_init:
+            wandb.log({"loss": loss.item()})
 
         # total_norm = 0.0
         # for p in NN_model.parameters():

@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from funcs_common import SimpleNN, obj_func, timestepping, compute_cell_average
 from IC import gaussian_testing, heaviside, bump, disc_source, vanishing_cs, disc_cs, reeds
-
+import wandb
 
 def testing(params):
 
@@ -27,7 +27,7 @@ def testing(params):
 
     if filter_type in (1,2):
         model_filename = load_model(N)
-        NN_model = torch.load(model_filename, map_location=torch.device(device))
+        NN_model = torch.load(model_filename, map_location=torch.device(device),weights_only=False)
         NN_model.to(device)
         NN_model.eval()
 
@@ -122,6 +122,19 @@ def testing(params):
 
     total_error_reduction = errorf / error0
     flux_error_reduction = flux_errf / flux_err0
+
+    
+    # Initialize wandb
+    wandb_init = True
+    if wandb_init:
+        wandb.init(project=f"1D_FP{N}_{T}_ic{ic_type}")
+
+        
+        wandb.log({"T": T, "sigf": sigf, "exact": exact, "PN": PN, "FPN": FPN})
+        wandb.log({"error0": error0, "errorf": errorf, "total_error_reduction": total_error_reduction})
+        wandb.log({"flux_err0": flux_err0, "flux_errf": flux_errf, "flux_error_reduction": flux_error_reduction})
+        wandb.finish()  
+
     print(ic_type, "errors T =", T)
 
     print(

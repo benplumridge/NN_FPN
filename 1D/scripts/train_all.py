@@ -42,6 +42,10 @@ params["device"] = "cpu"  # torch.device("cuda" if torch.cuda.is_available() els
 for n in [3,7,9]:
     N = n
     params['N'] = N
+    if N == 3:
+        params['learning_rate'] = 1e-2
+    elif N == 7 or N == 9:
+        params['learning_rate'] = 1e-3
     params['num_features'] = 2 * N + 4
     params['num_hidden'] = N+2
     filt_input = torch.arange(0, N + 1, 1) / (N + 1)
