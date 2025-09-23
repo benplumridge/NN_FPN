@@ -17,9 +17,19 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "s
 from params_common import params, filter_func
 from test_model import testing
 
+import argparse
+
+parser = argparse.ArgumentParser(description="Train the model for N")
+parser.add_argument("N", type=int, help="N")
+parser.add_argument("--const_net", action="store_true", help="train constant network")
+args = parser.parse_args()
+N = int(args.N)
+params["N"] = N
+params["const_net"] = args.const_net
+
 params["batch_size"] = 1
 params["tt_flag"] = 1
-params["device"] = "cpu"
+params["device"] = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # params['IC_idx'] = IC_idx
 
 N_exact = 127
@@ -47,7 +57,7 @@ for IC_idx in [0, 1, 2]:
             testing(params)
 
 params["IC_idx"] = 6
-#for N in [3]:
+# for N in [3]:
 for N in [3, 7, 9]:
     filt_input = torch.arange(0, N + 1, 1) / (N + 1)
     filter = -torch.log(filter_func(filt_input, filter_order))

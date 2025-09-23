@@ -4,8 +4,17 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 import numpy as np
 from funcs_common import SimpleNN, obj_func, timestepping, compute_cell_average
-from IC import gaussian_testing, heaviside, bump, disc_source, vanishing_cs, disc_cs, reeds
+from IC import (
+    gaussian_testing,
+    heaviside,
+    bump,
+    disc_source,
+    vanishing_cs,
+    disc_cs,
+    reeds,
+)
 import wandb
+
 
 def testing(params):
 
@@ -23,11 +32,13 @@ def testing(params):
     device = params["device"]
     IC_idx = params["IC_idx"]
     filter_type = params["filter_type"]
-    show_plot   = params["show_plot"]
+    show_plot = params["show_plot"]
 
-    if filter_type in (1,2):
-        model_filename = load_model(N)
-        NN_model = torch.load(model_filename, map_location=torch.device(device),weights_only=False)
+    if filter_type in (1, 2):
+        model_filename = load_model(N, params["const_net"])
+        NN_model = torch.load(
+            model_filename, map_location=torch.device(device), weights_only=False
+        )
         NN_model.to(device)
         NN_model.eval()
 
@@ -108,32 +119,48 @@ def testing(params):
         )
 
         error0 = torch.sqrt(
-            obj_func(PN - exact[:, :, 0 : N + 1],dx) / obj_func(exact[:, :, 0 : N + 1],dx)
+            obj_func(PN - exact[:, :, 0 : N + 1], dx)
+            / obj_func(exact[:, :, 0 : N + 1], dx)
         )
         errorf = torch.sqrt(
-            obj_func(FPN - exact[:, :, 0 : N + 1],dx) / obj_func(exact[:, :, 0 : N + 1],dx)
+            obj_func(FPN - exact[:, :, 0 : N + 1], dx)
+            / obj_func(exact[:, :, 0 : N + 1], dx)
         )
         flux_err0 = torch.sqrt(
-            obj_func(PN[:, :, 0] - exact[:, :, 0],dx) / obj_func(exact[:, :, 0],dx)
+            obj_func(PN[:, :, 0] - exact[:, :, 0], dx) / obj_func(exact[:, :, 0], dx)
         )
         flux_errf = torch.sqrt(
-            obj_func(FPN[:, :, 0] - exact[:, :, 0],dx) / obj_func(exact[:, :, 0],dx)
+            obj_func(FPN[:, :, 0] - exact[:, :, 0], dx) / obj_func(exact[:, :, 0], dx)
         )
 
     total_error_reduction = errorf / error0
     flux_error_reduction = flux_errf / flux_err0
 
-    
     # Initialize wandb
     wandb_init = True
     if wandb_init:
-        wandb.init(project=f"1D_FP{N}_{T}_ic{ic_type}")
+        wandb.init(
+            project=f"1D_final",
+            # name=f"const_net" if params["const_net"] else f"simple_NN",
+            config=params,
+        )
 
-        
-        wandb.log({"T": T, "sigf": sigf, "exact": exact, "PN": PN, "FPN": FPN})
-        wandb.log({"error0": error0, "errorf": errorf, "total_error_reduction": total_error_reduction})
-        wandb.log({"flux_err0": flux_err0, "flux_errf": flux_errf, "flux_error_reduction": flux_error_reduction})
-        wandb.finish()  
+        # wandb.log({"T": T, "sigf": sigf, "exact": exact, "PN": PN, "FPN": FPN})
+        wandb.log(
+            {
+                "P{N} error": error0,
+                "FP{N} error": errorf,
+                "total_error_reduction": total_error_reduction,
+            }
+        )
+        wandb.log(
+            {
+                "flux_P{N} error": flux_err0,
+                "flux_FP{N} error": flux_errf,
+                "flux_error_reduction": flux_error_reduction,
+            }
+        )
+        wandb.finish()
 
     print(ic_type, "errors T =", T)
 
@@ -154,21 +181,18 @@ def testing(params):
         flux_error_reduction,
     )
 
-    sigf  = sigf[0, :].detach().numpy()
+    sigf = sigf[0, :].detach().numpy()
     exact = exact[0, :, :].detach().numpy()
-    PN    = PN[0, :, :].detach().numpy()
-    FPN   = FPN[0, :, :].detach().numpy()
-
+    PN = PN[0, :, :].detach().numpy()
+    FPN = FPN[0, :, :].detach().numpy()
 
     exact_flux = np.sqrt(2) * exact[:, 0]
-    PN_flux    = np.sqrt(2) * PN[:, 0]
-    FPN_flux   = np.sqrt(2) * FPN[:, 0]
-    
-
+    PN_flux = np.sqrt(2) * PN[:, 0]
+    FPN_flux = np.sqrt(2) * FPN[:, 0]
 
     plt.rcParams.update({"font.size": 16})
-    
-    fig, ax1 = plt.subplots(figsize=(6, 5), constrained_layout = True)
+
+    fig, ax1 = plt.subplots(figsize=(6, 5), constrained_layout=True)
 
     # Plot on the first y-axis (left side)
     (line1,) = ax1.plot(x, exact_flux, label="Exact", color="r")
@@ -178,8 +202,8 @@ def testing(params):
     # Set labels and limits
     ax1.set_xlim([xl, xr])
     # ax1.set_ylabel('Scalar Flux')
-    ax1.set_xlabel('z', fontsize=18)
-    
+    ax1.set_xlabel("z", fontsize=18)
+
     # Create a second y-axis that shares the same x-axis
     ax2 = ax1.twinx()
 
@@ -188,19 +212,18 @@ def testing(params):
     lines = [line1, line2, line3, line4]  # Combine line objects
     labels = [line.get_label() for line in lines]  # Get labels for the lines
     # ax1.legend(lines, labels, loc='upper center', ncol=4, bbox_to_anchor=(0.5, 1.15))
-    
+
     if show_plot == 1:
         plt.show()
 
-    if IC_idx ==6:
+    if IC_idx == 6:
         T_int = int(T)
-    else: 
-        T_int = int(10*T)
+    else:
+        T_int = int(10 * T)
     # format T with a fixed number of decimals (say 3)
     filename = f"results/{ic_type}/P{N}_t{T_int}.png"
 
     plt.savefig(filename, bbox_inches="tight", dpi=300)
-
 
     # fig, ax = plt.subplots()  # Create figure and axes
 
@@ -217,11 +240,15 @@ def testing(params):
     return 0
 
 
-def load_model(N):
+def load_model(N, const_net):
     valid_N = {3, 7, 9}
     if N not in valid_N:
         raise ValueError(f"Invalid value for N: {N}. Expected one of {valid_N}.")
 
-    filename = f"trained_models/model_N{N}.pth"
-
+    filename = (
+        f"trained_models/model_N{N}_const.pth"
+        if const_net
+        else f"trained_models/model_N{N}.pth"
+    )
+    print("loading model from: ", filename)
     return filename
