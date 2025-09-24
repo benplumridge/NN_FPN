@@ -15,7 +15,6 @@ Clone the repo and install dependencies:
 git clone https://github.com/benplumridge/NN_FPN.git
 cd NN_FPN
 pip install -r requirements.txt
-wandb login
 
 ## 1D Experiments
 
