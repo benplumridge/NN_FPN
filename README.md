@@ -16,7 +16,7 @@ DOI: [to be added]
 Clone the repo and install dependencies:
 
 ```bash
-git clone https://github.com/benplumridge/NN_PN.git
+git clone https://github.com/benplumridge/NN_FPN.git
 cd NN_FPN
 pip install -r requirements.txt
 
