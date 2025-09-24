@@ -1,0 +1,20 @@
+{
+  "os":  "macOS-15.7-arm64-arm-64bit-Mach-O",
+  "python":  "CPython 3.13.7",
+  "startedAt":  "2025-09-24T23:39:33.375804Z",
+  "args":  [
+    "3"
+  ],
+  "program":  "/Users/6zp/Desktop/NN_FPN/1D/scripts/test_all.py",
+  "codePath":  "1D/scripts/test_all.py",
+  "codePathLocal":  "scripts/test_all.py",
+  "git":  {
+    "remote":  "git@github.com:benplumridge/NN_FPN.git",
+    "commit":  "c8ac51d436bac71e45ffc8b212079776a6ed5313"
+  },
+  "email":  "bplumrid@vols.utk.edu",
+  "root":  "/Users/6zp/Desktop/NN_FPN/1D",
+  "host":  "mac149848",
+  "executable":  "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+  "writerId":  "zp9743a3tmg92xlzcbjqvbkka892d471"
+}
