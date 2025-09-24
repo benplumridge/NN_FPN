@@ -17,7 +17,7 @@ Clone the repo and install dependencies:
 
 ```bash
 git clone https://github.com/benplumridge/NN_PN.git
-cd NN_PN
+cd NN_FPN
 pip install -r requirements.txt
 
 ## 1D Experiments
