@@ -148,9 +148,9 @@ def upwind_flux(N, num_basis, psi, params):
         Ay_minus.to(torch.float32),
     )
 
-    f_plus = torch.zeros([batch_size, num_y, num_x, num_basis], device=device)
+    f_plus  = torch.zeros([batch_size, num_y, num_x, num_basis], device=device)
     f_minus = torch.zeros([batch_size, num_y, num_x, num_basis], device=device)
-    g_plus = torch.zeros([batch_size, num_y, num_x, num_basis], device=device)
+    g_plus  = torch.zeros([batch_size, num_y, num_x, num_basis], device=device)
     g_minus = torch.zeros([batch_size, num_y, num_x, num_basis], device=device)
 
     dx_left = torch.zeros([batch_size, num_y, num_x, num_basis], device=device)
@@ -176,28 +176,28 @@ def upwind_flux(N, num_basis, psi, params):
 
     lim_x = minmod(dx_left, dx_right)
     lim_y = minmod(dy_down, dy_up)
-    lim_x_plus = torch.zeros_like(lim_x)
+    lim_x_plus  = torch.zeros_like(lim_x)
     lim_x_minus = torch.zeros_like(lim_x)
-    lim_y_plus = torch.zeros_like(lim_y)
+    lim_y_plus  = torch.zeros_like(lim_y)
     lim_y_minus = torch.zeros_like(lim_y)
     lim_x_plus[:, 1 : num_y - 1, 1 : num_x - 1, :] = (
         lim_x[:, 1 : num_y - 1, 2:num_x, :] - lim_x[:, 1 : num_y - 1, 1 : num_x - 1, :]
     )
     lim_x_minus[:, 1 : num_y - 1, 1 : num_x - 1, :] = (
-        lim_x[:, 1 : num_y - 1, 1 : num_x - 1, :]
+          lim_x[:, 1 : num_y - 1, 1 : num_x - 1, :]
         - lim_x[:, 1 : num_y - 1, 0 : num_x - 2, :]
     )
     lim_y_plus[:, 1 : num_y - 1, 1 : num_x - 1, :] = (
         lim_y[:, 2:num_y, 1 : num_x - 1, :] - lim_y[:, 1 : num_y - 1, 1 : num_x - 1, :]
     )
     lim_y_minus[:, 1 : num_y - 1, 1 : num_x - 1, :] = (
-        lim_y[:, 1 : num_y - 1, 1 : num_x - 1, :]
+          lim_y[:, 1 : num_y - 1, 1 : num_x - 1, :]
         - lim_y[:, 0 : num_y - 2, 1 : num_x - 1, :]
     )
 
-    f_plus = torch.matmul(dx_right - 0.5 * lim_x_plus, Ax_minus.T)
+    f_plus  = torch.matmul(dx_right - 0.5 * lim_x_plus, Ax_minus.T)
     f_minus = torch.matmul(dx_left + 0.5 * lim_x_minus, Ax_plus.T)
-    g_plus = torch.matmul(dy_up - 0.5 * lim_y_plus, Ay_minus.T)
+    g_plus  = torch.matmul(dy_up - 0.5 * lim_y_plus, Ay_minus.T)
     g_minus = torch.matmul(dy_down + 0.5 * lim_y_minus, Ay_plus.T)
 
     f_plus[:, :, -1, :] = torch.zeros([batch_size, num_y, num_basis], device=device)
