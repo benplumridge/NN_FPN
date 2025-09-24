@@ -11,6 +11,8 @@ DOI: [to be added]
 
 ---
 
+This repository contains code for training and testing neural network filters for the PN method in 1D and 2D radiative transfer. 
+
 ## Installation
 
 Clone the repo and install dependencies:
