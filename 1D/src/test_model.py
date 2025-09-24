@@ -150,7 +150,13 @@ def testing(params):
     exact_flux = np.sqrt(2) * exact[:, 0]
     PN_flux    = np.sqrt(2) * PN[:, 0]
     FPN_flux   = np.sqrt(2) * FPN[:, 0]
-    
+
+    import os
+    os.makedirs("results", exist_ok=True)
+    os.makedirs("results/Gaussian", exist_ok=True)
+    os.makedirs("results/Vanishing_Cross_Section", exist_ok=True)
+    os.makedirs("results/Discontinuous_Cross_Section", exist_ok=True)
+    os.makedirs("results/Reeds", exist_ok=True)
 
 
     plt.rcParams.update({"font.size": 16})
