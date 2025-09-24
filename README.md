@@ -1,4 +1,4 @@
-# RTE_OPT2
+# NN_PN
 
 ## About
 
@@ -16,6 +16,6 @@ Doi link (to be added)
 Clone the repo and install dependencies:
 
 ```bash
-git clone https://github.com/username/RTE_OPT2.git
+git clone https://github.com/benplumridge/NN_PN.git
 cd repo-name
 pip install -r requirements.txt
