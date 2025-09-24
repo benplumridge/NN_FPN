@@ -140,7 +140,7 @@ def testing(params):
     wandb_init = True
     if wandb_init:
         wandb.init(
-            project=f"1D_final",
+            project=f"1D_final_results",
             # name=f"const_net" if params["const_net"] else f"simple_NN",
             config=params,
         )

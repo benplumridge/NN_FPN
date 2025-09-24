@@ -75,7 +75,7 @@ def training(params):
     wandb_init = True
     if wandb_init:
         wandb.init(
-            project=f"1D_training",
+            project=f"1D_training_T_half",
             config=params,
         )
         wandb.watch(NN_model, log_freq=1)

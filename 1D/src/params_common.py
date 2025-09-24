@@ -14,7 +14,7 @@ def filter_func(z, p):
 N = 3
 N_exact = 127
 num_x = 128
-T = 1
+T = 0.5
 # num_x = 128*4
 # T = 12
 
