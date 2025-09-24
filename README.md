@@ -22,7 +22,10 @@ pip install -r requirements.txt
 
 ## 1D Experiments
 
-** Train model for each N in [3,7,9] **
+** The run_all script trains 10 neural network and constant models, computing all test problems, including ablation studies **
+bash scripts/run_all.sh
+
+** Train 1 model for each N in [3,7,9] **
 
 cd 1D
 python scripts/train_all.py
