@@ -34,7 +34,7 @@ def testing(params):
     show_slices = params["show_slices"]
     if filter_type == 0:
         model_filename = load_model(N)
-        NN_model = torch.load(model_filename, map_location=torch.device(device))
+        NN_model = torch.load(model_filename, map_location=torch.device(device), weights_only= False)
         NN_model.to(device)
         NN_model.eval()
 
