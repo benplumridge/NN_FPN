@@ -1,13 +1,7 @@
-# NN_FPN
+** Neural Network-Based Adaptive Filtering of the Spherical Harmonic Method **  
 
-## About
-
-This repository contains code for the paper:
-
-**Neural Network-Based Adaptive Filtering of the Spherical Harmonic Method**  
 Benjamin Plumridge, Cory Hauck, Steffen Schotthöfer  
 *To appear in the Journal of Scientific Computing, September 2025*  
-DOI: [to be added]
 
 ---
 
@@ -44,7 +38,8 @@ python3 scripts/train_all.py
 cd 2D
 python3 scripts/test_all.py
 ```
-### NOTE: If you would like to test problems with already trained models, you can skip training and test with models used in the paper.   The test scripts use models from the `trained_models\` folder.  Training overwrites these models. 
+
+NOTE: If you would like to test problems with already trained models, you can skip training and test with models used in the paper.   The test scripts use models from the `trained_models\` folder.  Training overwrites these models. 
 
 ### Individual Experiments
 
