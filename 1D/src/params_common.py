@@ -3,8 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 
-def filter_func(z, p):
-    return torch.exp(-(z**p))
+
 
 
 # N = 3: 27.1199
@@ -49,9 +48,6 @@ weight_decay = 1e-5
 if filter_type == 3:
     num_hidden = 0
     num_features = 0
-
-filt_input = torch.arange(0, N + 1, 1) / (N + 1)
-filter = -torch.log(filter_func(filt_input, filter_order))
 
 params = {
     "num_x": num_x,

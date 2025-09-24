@@ -32,46 +32,9 @@ class SimpleNN(nn.Module):
         original_shape = x.shape
         x = torch.flatten(x, start_dim=0, end_dim=1)
         x = torch.relu(self.hidden(x))  # Activation hidden layer
-        # if self.N > 3:
-        #    x = torch.relu(self.hidden2(x)) + x  # Activation hidden layer
         x = torch.relu(self.output(x))  # Activation output layer
         output_shape = [original_shape[0], original_shape[1], 1]
         return x.reshape(output_shape)  # torch.ones(output_shape)  #
-
-
-# class SimpleNN(nn.Module):
-#     def __init__(self, num_features, num_hidden):
-#         super(SimpleNN, self).__init__()
-#         self.hidden1 = nn.Linear(num_features, num_hidden)  # (inputs,hidden)
-#         # self.hidden2 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
-#         # self.hidden3 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
-#         # self.hidden4 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
-
-#         #self.bn1 = nn.LayerNorm(num_features)
-#         self.bn2 = nn.LayerNorm(num_hidden)
-#         # self.bn3 = nn.LayerNorm(num_hidden)
-#         # self.bn4 = nn.LayerNorm(num_hidden)
-#         # self.bn5 = nn.LayerNorm(num_hidden)
-#         self.output = nn.Linear(num_hidden, 1)  # (hidden,output)
-#         print(self)
-
-#     def forward(self, x):
-#         # print("Input shape:", x.shape)  # Debugging line
-#         original_shape = x.shape
-#         x = torch.flatten(x, start_dim=0, end_dim=1)
-#         # print("Flattened input shape:", x.shape)  # Debugging line
-#         #x = self.bn1(x)
-#         x = torch.tanh(self.hidden1(x))      # Activation hidden layer
-#         x = self.bn2(x)
-#         #x = torch.tanh(self.hidden2(x)) + x  # Activation hidden layer
-#         # x = self.bn3(x)
-#         # x = torch.tanh(self.hidden3(x)) + x  # Activation hidden layer
-#         # x = self.bn4(x)
-#         # x = torch.tanh(self.hidden4(x)) + x  # Activation hidden layer
-#         # x = self.bn5(x)
-#         x = torch.relu(self.output(x))  # Activation output layer
-#         output_shape = [original_shape[0], original_shape[1], 1]
-#         return x.reshape(output_shape)
 
 
 def timestepping(
@@ -106,7 +69,7 @@ def timestepping(
     C = C.to(device)
     D = D.to(device)
     source = source.to(device)
-    filter_func = filter_func.to(device)
+
     A = A.to(device)
     absA = absA.to(device)
     sigt = sigt.to(device)
@@ -194,8 +157,10 @@ def PN_update(
     device = params["device"]
     IC_idx = params["IC_idx"]
     num_x = params["num_x"]
-    filter_func = params["filter"]
-
+    filter_order = params["filter_order"]
+    filt_input = torch.arange(0, N + 1, 1) / (N + 1)
+    filter = -torch.log(filter_func(filt_input, filter_order))
+    filter = filter.to(device)
     flux_limiter = torch.zeros([batch_size, num_x + 2, N + 1], device=device)
     y_expand = torch.zeros([batch_size, num_x + 2, N + 1], device=device)
 
@@ -251,7 +216,7 @@ def PN_update(
 
     if filter_type in (1, 2, 3):
 
-        y_update = y_update - sigf[:, :, None] * y_prev * filter_func
+        y_update = y_update - sigf[:, :, None] * y_prev * filter
 
     y_update[:, :, 0] = (
         y_update[:, :, 0] + sigs[:, :, 0] * y_expand[:, 1 : num_x + 1, 0] + source
@@ -281,6 +246,8 @@ def preprocess_features(A_Dy, sigt_y, scattering, source, filter_type):
     inputs = torch.cat((A_Dy_NN, sigt_y_NN, scattering_NN, source_NN), dim=-1)
     return inputs
 
+def filter_func(z, p):
+    return torch.exp(-(z**p))
 
 def NN_normalization(f):
     f_mean = torch.mean(f, dim=[1], keepdim=True)

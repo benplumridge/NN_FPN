@@ -1,0 +1,1 @@
+{"loss":0.03573881834745407,"_step":1,"_wandb":{"runtime":2},"_runtime":2,"gradients/const":{"bins":[-0.009679350070655346,-0.009679350070655346],"_type":"histogram","values":[1]},"_timestamp":1.758755610134162e+09}

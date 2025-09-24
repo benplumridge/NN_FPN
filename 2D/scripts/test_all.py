@@ -3,7 +3,7 @@ import os
 import torch
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
-from params_common import params, filter_coefficients
+from params_common import params
 from test_model import testing
 
 
@@ -53,11 +53,9 @@ for N in [3, 5, 7, 9]:
     num_features = 2 * (N + 1) + 2
     num_hidden = num_features // 2
     num_basis = (N + 1) * (N + 2) // 2
-    filter = filter_coefficients(params["filter_order"], N, num_basis)
     params["num_basis"] = num_basis
     params["num_features"] = num_features
     params["num_hidden"] = num_hidden
-    params["filter"] = filter
     params["N"] = N
     T = 0.75
     testing(params)
@@ -91,7 +89,7 @@ for N in [3, 5, 7, 9]:
     params["num_basis"] = num_basis
     params["num_features"] = num_features
     params["num_hidden"] = num_hidden
-    filter = filter_coefficients(params["filter_order"], N, num_basis)
+    
     params["filter"] = filter
     params["N"] = N
     for T in [1.6, 3.2]:
