@@ -44,7 +44,7 @@ python scripts/train_all.py
 cd 2D
 python scripts/test_all.py
 ```
-
+### NOTE: If you would like to test problems with already trained models, you can skip training and test with models used in the paper.  The training scripts will overwrite the models in the `trained_models\` folder. 
 
 ### Individual Experiments
 
