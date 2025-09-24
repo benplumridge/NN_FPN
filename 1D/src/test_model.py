@@ -27,7 +27,7 @@ def testing(params):
 
     if filter_type in (1,2):
         model_filename = load_model(N)
-        NN_model = torch.load(model_filename, map_location=torch.device(device))
+        NN_model = torch.load(model_filename, map_location=torch.device(device), weights_only = False)
         NN_model.to(device)
         NN_model.eval()
 
