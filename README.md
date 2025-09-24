@@ -12,7 +12,7 @@ This repository contains code for training and testing neural network filters fo
 Clone the repo and install dependencies:
 
 ```bash
-git clone https://github.com/benplumridge/NN_PN.git
+git clone https://github.com/benplumridge/NN_FPN.git
 cd NN_FPN
 pip install -r requirements.txt
 wandb login
