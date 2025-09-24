@@ -25,7 +25,7 @@ python3 scripts/train_all.py
 ** Test all problems **
 
 cd 1D
-python3 scripts/test_all.py
+python3 scripts/test_all.py <N>
 
 
 ## 2D Experiments
