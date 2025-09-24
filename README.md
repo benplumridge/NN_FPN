@@ -14,31 +14,31 @@ Clone the repo and install dependencies:
 ```bash
 git clone https://github.com/benplumridge/NN_FPN.git
 cd NN_FPN
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 
 ## 1D Experiments
 
 ** Train model for each N in [3,7,9] **
 
 cd 1D
-python scripts/train_all.py
+python3 scripts/train_all.py
 
 
 ** Test all problems **
 
 cd 1D
-python scripts/test_all.py
+python3 scripts/test_all.py
 
 
 ## 2D Experiments
 
 cd 2D
-python scripts/train_all.py
+python3 scripts/train_all.py
 
 ## Test all problems
 
 cd 2D
-python scripts/test_all.py
+python3 scripts/test_all.py
 ```
 
 NOTE: If you would like to test problems with already trained models, you can skip training and test with models used in the paper.   The test scripts use models from the `trained_models\` folder.  Training overwrites these models. 
