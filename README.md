@@ -39,10 +39,24 @@ python scripts/test_all.py
 cd 2D
 python scripts/train_all.py
 
-##2D Testing
+## Test all problems
 
 cd 2D
 python scripts/test_all.py
+```
+
+
+### Individual Experiments
+
+In addition to the "all-in-one" scripts (`train_all.py` and `test_all.py`), individual experiments can be performed using `scripts/test_driver`.  To modify parameters, including N, see `src/parameters`.:
+
+This allows users to:
+- Run a single experiment for quick testing.
+- Modify individual configurations without running the full suite.
+- Reproduce specific figures or results from the paper.
+
+**Recommendation:** For most purposes, use `train_all.py` / `test_all.py` to reproduce all results.
+
 
 
 
