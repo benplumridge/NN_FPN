@@ -157,6 +157,7 @@ def PN_update(
     device = params["device"]
     IC_idx = params["IC_idx"]
     num_x = params["num_x"]
+    ablation_idx = params["ablation_idx"]
     filter_order = params["filter_order"]
     filt_input = torch.arange(0, N + 1, 1) / (N + 1)
     filter = -torch.log(filter_func(filt_input, filter_order))
@@ -197,7 +198,7 @@ def PN_update(
         yflux = y_prev[:, :, 0]
         yflux = yflux[:, :, None]
         inputs = preprocess_features(
-            A_Dy, sigt * y_prev, sigs * yflux, source_in, filter_type
+            A_Dy, sigt * y_prev, sigs * yflux, source_in, filter_type, ablation_idx
         )
         sigf = NN_model(inputs).squeeze(-1)
 
@@ -225,7 +226,7 @@ def PN_update(
     return y_update, sigf
 
 
-def preprocess_features(A_Dy, sigt_y, scattering, source, filter_type):
+def preprocess_features(A_Dy, sigt_y, scattering, source, filter_type, ablation_idx):
     scattering_NN = NN_normalization(torch.abs(scattering))
     source_NN = NN_normalization(torch.abs(source))
 
@@ -243,7 +244,26 @@ def preprocess_features(A_Dy, sigt_y, scattering, source, filter_type):
         sigt_y_NN = NN_normalization(sigt_y)
         A_Dy_NN = NN_normalization(A_Dy)
 
-    inputs = torch.cat((A_Dy_NN, sigt_y_NN, scattering_NN, source_NN), dim=-1)
+    if ablation_idx == 0:
+        inputs = torch.cat((A_Dy_NN, sigt_y_NN, scattering_NN, source_NN), dim=-1)
+    elif ablation_idx == 1:
+        inputs = torch.cat((A_Dy_NN, 0*sigt_y_NN, 0*scattering_NN, 0*source_NN), dim=-1)
+    if ablation_idx == 2:
+        inputs = torch.cat((0*A_Dy_NN, sigt_y_NN, 0*scattering_NN, 0*source_NN), dim=-1)
+    if ablation_idx == 3:
+        inputs = torch.cat((0*A_Dy_NN, 0*sigt_y_NN, scattering_NN, 0*source_NN), dim=-1)
+    if ablation_idx == 4:
+        inputs = torch.cat((0*A_Dy_NN, 0*sigt_y_NN, 0*scattering_NN, source_NN), dim=-1)
+    if ablation_idx == 6:
+        inputs = torch.cat((0*A_Dy_NN, 0*sigt_y_NN, 0*scattering_NN, 0*source_NN), dim=-1)
+    if ablation_idx == 7:
+        inputs = torch.cat((0*A_Dy_NN, sigt_y_NN, scattering_NN, source_NN), dim=-1)
+    if ablation_idx == 8:
+        inputs = torch.cat((A_Dy_NN, 0*sigt_y_NN, scattering_NN, source_NN), dim=-1)
+    if ablation_idx == 9:
+        inputs = torch.cat((A_Dy_NN, sigt_y_NN, 0*scattering_NN, source_NN), dim=-1)
+    if ablation_idx == 10:
+        inputs = torch.cat((A_Dy_NN, sigt_y_NN, scattering_NN, 0*source_NN), dim=-1)
     return inputs
 
 def filter_func(z, p):

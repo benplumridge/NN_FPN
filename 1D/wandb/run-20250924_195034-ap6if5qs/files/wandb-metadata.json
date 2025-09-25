@@ -1,0 +1,17 @@
+{
+  "os":  "macOS-15.7-arm64-arm-64bit-Mach-O",
+  "python":  "CPython 3.13.7",
+  "startedAt":  "2025-09-24T23:50:34.355914Z",
+  "program":  "/Users/6zp/Desktop/NN_FPN/1D/scripts/train_all.py",
+  "codePath":  "1D/scripts/train_all.py",
+  "codePathLocal":  "scripts/train_all.py",
+  "git":  {
+    "remote":  "https://github.com/benplumridge/NN_FPN.git",
+    "commit":  "36576cea85be12bb149588919b7a942597712fe6"
+  },
+  "email":  "bplumrid@vols.utk.edu",
+  "root":  "/Users/6zp/Desktop/NN_FPN/1D",
+  "host":  "mac149848",
+  "executable":  "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+  "writerId":  "voxphfwvidstabf9jxxgu2x1pnna94p5"
+}

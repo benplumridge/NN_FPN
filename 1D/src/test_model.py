@@ -35,17 +35,12 @@ def testing(params):
     show_plot = params["show_plot"]
 
     if filter_type in (1, 2):
-        model_filename = load_model(N, params["const_net"])
+        model_filename = load_model(N, params["const_net"], params["model_idx"])
         NN_model = torch.load(
             model_filename, map_location=torch.device(device), weights_only=False
         )
         NN_model.to(device)
         NN_model.eval()
-
-        # for name, param in NN_model.named_parameters():
-        #     if 'weight' in name and param.requires_grad:
-        #         norm = torch.norm(param).item()
-        #         print(f"Layer: {name} | Weight norm: {norm:.4f}")
 
     elif filter_type == 3:
         if N == 3:
@@ -249,7 +244,7 @@ def testing(params):
     return 0
 
 
-def load_model(N, const_net):
+def load_model(N, const_net, model_idx):
     valid_N = {3, 7, 9}
     if N not in valid_N:
         raise ValueError(f"Invalid value for N: {N}. Expected one of {valid_N}.")
@@ -257,7 +252,7 @@ def load_model(N, const_net):
     filename = (
         f"trained_models/model_N{N}_const.pth"
         if const_net
-        else f"trained_models/model_N{N}.pth"
+        else f"trained_models/model_N{N}_{model_idx}.pth"
     )
     print("loading model from: ", filename)
     return filename
