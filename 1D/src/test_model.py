@@ -34,11 +34,17 @@ def testing(params):
     filter_type = params["filter_type"]
     show_plot = params["show_plot"]
 
+<<<<<<< HEAD
     if filter_type in (1, 2):
         model_filename = load_model(N, params["const_net"], params["model_idx"])
         NN_model = torch.load(
             model_filename, map_location=torch.device(device), weights_only=False
         )
+=======
+    if filter_type in (1,2):
+        model_filename = load_model(N)
+        NN_model = torch.load(model_filename, map_location=torch.device(device), weights_only = False)
+>>>>>>> a2a30ac3f3988b8037e26c35f8b969418d013b86
         NN_model.to(device)
         NN_model.eval()
 
@@ -197,8 +203,15 @@ def testing(params):
     FPN = FPN[0, :, :].detach().numpy()
 
     exact_flux = np.sqrt(2) * exact[:, 0]
-    PN_flux = np.sqrt(2) * PN[:, 0]
-    FPN_flux = np.sqrt(2) * FPN[:, 0]
+    PN_flux    = np.sqrt(2) * PN[:, 0]
+    FPN_flux   = np.sqrt(2) * FPN[:, 0]
+
+    import os
+    os.makedirs("results", exist_ok=True)
+    os.makedirs("results/Gaussian", exist_ok=True)
+    os.makedirs("results/Vanishing_Cross_Section", exist_ok=True)
+    os.makedirs("results/Discontinuous_Cross_Section", exist_ok=True)
+    os.makedirs("results/Reeds", exist_ok=True)
 
 
     import os

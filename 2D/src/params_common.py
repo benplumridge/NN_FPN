@@ -5,10 +5,10 @@ import numpy as np
 
 
 N = 3
-N_exact = 37
+N_exact = 5
 
 # note num_x and num_y refer to cell centers:  so there will be num_x + 1 nodes in x
-num_x = 100
+num_x = 20
 T = 0.5
 
 filter_order = 4
