@@ -269,11 +269,11 @@ def preprocess_features(A_Dy, sigt_y, scattering, source, filter_type):
         sigt_y_NN = NN_normalization(torch.abs(sigt_y))
 
     elif filter_type == 2:
-        A_Dy_temp = A_Dy.clone()
-        y_temp = sigt_y.clone()
+        mask = torch.ones(A_Dy.shape[2], device=A_Dy.device, dtype=torch.bool)
+        mask[1::2] = True
 
-        A_Dy[:, :, 1::2] = torch.abs(A_Dy_temp[:, :, 1::2])
-        sigt_y[:, :, 1::2] = torch.abs(y_temp[:, :, 1::2])
+        A_Dy = torch.where(mask[None, None, :], torch.abs(A_Dy), A_Dy)
+        sigt_y = torch.where(mask[None, None, :], torch.abs(sigt_y), sigt_y)
 
         sigt_y_NN = NN_normalization(sigt_y)
         A_Dy_NN = NN_normalization(A_Dy)
