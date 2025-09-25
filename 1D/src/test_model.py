@@ -132,30 +132,50 @@ def testing(params):
     flux_error_reduction = flux_errf / flux_err0
 
     # Initialize wandb
+    # wandb_init = True
+    # if wandb_init:
+    #     wandb.init(
+    #         project=f"1D_final",
+    #         # name=f"const_net" if params["const_net"] else f"simple_NN",
+    #         config=params,
+    #     )
+
+    #     # wandb.log({"T": T, "sigf": sigf, "exact": exact, "PN": PN, "FPN": FPN})
+    #     wandb.log(
+    #         {
+    #             "P{N} error": error0,
+    #             "FP{N} error": errorf,
+    #             "total_error_reduction": total_error_reduction,
+    #         }
+    #     )
+    #     wandb.log(
+    #         {
+    #             "flux_P{N} error": flux_err0,
+    #             "flux_FP{N} error": flux_errf,
+    #             "flux_error_reduction": flux_error_reduction,
+    #         }
+    #     )
+    #     wandb.finish()
+
     wandb_init = True
     if wandb_init:
         wandb.init(
-            project=f"1D_final",
-            # name=f"const_net" if params["const_net"] else f"simple_NN",
-            config=params,
-        )
+        project="1D_final",
+        name=f"const_net" if params["const_net"] else f"simple_NN",
+        config={
+            "N": N,
+            "ablation_idx": params["ablation_idx"],
+            "model_idx": params["model_idx"],
+        }
+     )
 
-        # wandb.log({"T": T, "sigf": sigf, "exact": exact, "PN": PN, "FPN": FPN})
-        wandb.log(
-            {
-                "P{N} error": error0,
-                "FP{N} error": errorf,
-                "total_error_reduction": total_error_reduction,
-            }
-        )
-        wandb.log(
-            {
-                "flux_P{N} error": flux_err0,
-                "flux_FP{N} error": flux_errf,
-                "flux_error_reduction": flux_error_reduction,
-            }
-        )
-        wandb.finish()
+    # Log flux_error_reduction under a dynamic name
+    wandb.log({
+        "flux_error_reduction": flux_error_reduction,
+        f"N{N}_Abl{params["ablation_idx"]}_iter{params["model_idx"]}": flux_error_reduction
+    })
+
+    wandb.finish()
 
     print(ic_type, "errors T =", T)
 
