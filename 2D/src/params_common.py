@@ -3,23 +3,6 @@ import torch.optim as optim
 import numpy as np
 
 
-def filter_func(z, p):
-    return torch.exp(-(z**p))
-
-
-def filter_coefficients(filter_order, N, num_basis):
-    filter = torch.zeros(N + 1)
-    filter[1 : N + 1] = -torch.log(
-        filter_func(torch.arange(1, N + 1) / (N + 1), filter_order)
-    )
-
-    filter_expand = torch.zeros(num_basis)
-    idx = 0
-    for l in range(1, N + 2):
-        filter_expand[idx : idx + l] = filter[l - 1]
-        idx += l
-    return filter_expand
-
 
 N = 3
 N_exact = 5
@@ -50,8 +33,7 @@ yl = -1
 yr = 1
 
 num_features = 2 * (N + 1) + 2
-#num_hidden = num_features // 2
-num_hidden = 100
+num_hidden = N+2
 
 num_basis = (N + 1) * (N + 2) // 2
 num_basis_exact = (N_exact + 1) * (N_exact + 2) // 2
@@ -76,8 +58,6 @@ num_x_fine = num_x * num_x_fine_factor + 1
 num_y_fine = num_y * num_y_fine_factor + 1
 x_fine = torch.linspace(xl, xr, num_x_fine, dtype=torch.float32)
 y_fine = torch.linspace(yl, yr, num_y_fine, dtype=torch.float32)
-
-filter = filter_coefficients(filter_order, N, num_basis)
 
 plot_idx = int(np.round(num_x // 2))
 

@@ -23,16 +23,16 @@ class SimpleNN(nn.Module):
         # print("Input shape:", x.shape)  # Debugging line
         original_shape = x.shape
         x = torch.flatten(x, start_dim=0, end_dim=2)
-        # print("Flattened input shape:", x.shape)  # Debugging line
+        #print("Flattened input shape:", x.shape)  # Debugging line
         x = self.bn1(x)
         x = torch.tanh(self.hidden1(x))      # Activation hidden layer
         x = self.bn2(x)
-        # x = torch.tanh(self.hidden2(x)) + x  # Activation hidden layer
-        # x = self.bn3(x)
-        # x = torch.tanh(self.hidden3(x)) + x  # Activation hidden layer
-        # x = self.bn4(x)
-        # x = torch.tanh(self.hidden4(x)) + x  # Activation hidden layer
-        # x = self.bn5(x)
+        x = torch.tanh(self.hidden2(x)) + x  # Activation hidden layer
+        x = self.bn3(x)
+        x = torch.tanh(self.hidden3(x)) + x  # Activation hidden layer
+        x = self.bn4(x)
+        x = torch.tanh(self.hidden4(x)) + x  # Activation hidden layer
+        x = self.bn5(x)
         x = torch.relu(self.output(x))  # Activation output layer
         output_shape = [original_shape[0], original_shape[1], original_shape[2], 1]
         return x.reshape(output_shape)
@@ -255,11 +255,6 @@ def preprocess_features(N, psi, dxpsi, dypsi, scattering, source, params):
 
         index += num_m
 
-    # scattering_in = NN_normalization(scattering[:, :, :, None])
-    # source_in = NN_normalization(source[:, :, :, None])
-    # psi_in = NN_normalization(psi_norms)
-    # dpsi_in = NN_normalization(dpsi_norms)
-
     scattering_in = scattering[:, :, :, None]
     source_in = source[:, :, :, None]
     psi_in    = psi_norms
@@ -269,12 +264,12 @@ def preprocess_features(N, psi, dxpsi, dypsi, scattering, source, params):
     return inputs
 
 
-def NN_normalization(f):
-    f_mean = torch.mean(f, dim=[1, 2], keepdim=True)
-    f_std = torch.std(f, dim=[1, 2], keepdim=True)
+# def NN_normalization(f):
+#     f_mean = torch.mean(f, dim=[1, 2], keepdim=True)
+#     f_std = torch.std(f, dim=[1, 2], keepdim=True)
 
-    f_normalized = (f - f_mean) / (f_std + 1e-10)
-    return f_normalized
+#     f_normalized = (f - f_mean) / (f_std + 1e-10)
+#     return f_normalized
 
 
 def timestepping(psi0, filt_switch, NN_model, params, sigs, sigt, N, num_basis, source):
@@ -315,6 +310,9 @@ def PN_update(
     IC_idx = params["IC_idx"]
     device = params["device"]
     filter_type = params["filter_type"]
+    
+
+    filter = filter_coefficients(params["filter_order"], N, num_basis)
     filter = filter.to(device)
 
     fluxes, A_dxpsi, A_dypsi = upwind_flux(N, num_basis, psi_prev, params)
@@ -373,87 +371,22 @@ def compute_cell_average(f, num_x, num_y, num_funcs):
     return average
 
 
-def reconstruction(
-    f_coarse,
-    x_fine,
-    y_fine,
-    x_coarse,
-    y_coarse,
-    num_x,
-    num_y,
-    dx,
-    dy,
-    num_y_fine,
-    num_x_fine,
-    num_y_fine_factor,
-    num_x_fine_factor,
-):
-    f_coarse_expanded = torch.zeros(
-        num_y + 2, num_x + 2, dtype=f_coarse.dtype, device=f_coarse.device
-    )
-    f_coarse_expanded[1:-1, 1:-1] = f_coarse
+def filter_func(z, p):
+    return torch.exp(-(z**p))
 
-    # f_coarse_expanded[0,1:-1]  = f_coarse[0,:]
-    # f_coarse_expanded[-1,1:-1] = f_coarse[-1,:]
-    # f_coarse_expanded[1:-1,0]  = f_coarse[:,0]
-    # f_coarse_expanded[1:-1,-1] = f_coarse[:,-1]
-    # f_coarse_expanded[0, 0]    = f_coarse[0, 0]
-    # f_coarse_expanded[0, -1]   = f_coarse[0, -1]
-    # f_coarse_expanded[-1, 0]   = f_coarse[-1, 0]
-    # f_coarse_expanded[-1, -1]  = f_coarse[-1, -1]
 
-    grad_x = torch.zeros(num_y, num_x)
-    grad_y = torch.zeros(num_y, num_x)
-
-    grad_x = (f_coarse_expanded[1:-1, 2:] - f_coarse_expanded[1:-1, :-2]) / (2 * dx)
-    grad_y = (f_coarse_expanded[2:, 1:-1] - f_coarse_expanded[:-2, 1:-1]) / (2 * dy)
-
-    grad_x[:, 0] = (f_coarse[:, 1] - f_coarse[:, 0]) / dx
-    grad_x[:, num_x - 1] = (f_coarse[:, num_x - 1] - f_coarse[:, num_x - 2]) / dx
-    grad_y[0, :] = (f_coarse[1, :] - f_coarse[0, :]) / dx
-    grad_y[num_y - 1, :] = (f_coarse[num_y - 1, :] - f_coarse[num_y - 2, :]) / dx
-
-    f_fine = torch.zeros(
-        num_y_fine, num_x_fine, dtype=f_coarse.dtype, device=f_coarse.device
+def filter_coefficients(filter_order, N, num_basis):
+    filter = torch.zeros(N + 1)
+    filter[1 : N + 1] = -torch.log(
+        filter_func(torch.arange(1, N + 1) / (N + 1), filter_order)
     )
 
-    for m in range(num_y):
-        for n in range(num_x):
-            for m_ref in range(num_y_fine_factor):
-                for n_ref in range(num_x_fine_factor):
-                    fine_m = m * num_y_fine_factor + m_ref
-                    fine_n = n * num_x_fine_factor + n_ref
-                    f_fine[fine_m, fine_n] = (
-                        f_coarse[m, n]
-                        + grad_x[m, n] * (x_fine[fine_n] - x_coarse[n])
-                        + grad_y[m, n] * (y_fine[fine_m] - y_coarse[m])
-                    )
-
-    for m in range(num_y):
-        for m_ref in range(num_y_fine_factor):
-            fine_m = m * num_y_fine_factor + m_ref
-            f_fine[fine_m, num_x_fine - 1] = (
-                f_coarse[m, num_x - 1]
-                + grad_x[m, num_x - 1] * (x_fine[num_x_fine - 1] - x_coarse[num_x - 1])
-                + grad_y[m, num_x - 1] * (y_fine[fine_m] - y_coarse[m])
-            )
-
-    for n in range(num_x):
-        for n_ref in range(num_x_fine_factor):
-            fine_n = n * num_x_fine_factor + n_ref
-            f_fine[num_y_fine - 1, fine_n] = (
-                f_coarse[num_y - 1, n]
-                + grad_x[num_y - 1, n] * (x_fine[fine_n] - x_coarse[n])
-                + grad_y[num_y - 1, n] * (y_fine[num_y_fine - 1] - y_coarse[num_y - 1])
-            )
-
-    f_fine[num_y_fine - 1, num_x_fine - 1] = (
-        f_coarse[num_y - 1, num_x - 1]
-        + grad_x[num_y - 1, num_x - 1] * (x_fine[num_x_fine - 1] - x_coarse[num_x - 1])
-        + grad_y[num_y - 1, num_x - 1] * (y_fine[num_y_fine - 1] - y_coarse[num_y - 1])
-    )
-
-    return f_fine
+    filter_expand = torch.zeros(num_basis)
+    idx = 0
+    for l in range(1, N + 2):
+        filter_expand[idx : idx + l] = filter[l - 1]
+        idx += l
+    return filter_expand
 
 
 def rotation_test(psi):

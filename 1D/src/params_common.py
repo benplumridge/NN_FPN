@@ -3,8 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 
-def filter_func(z, p):
-    return torch.exp(-(z**p))
+
 
 
 # N = 3: 27.1199
@@ -14,7 +13,7 @@ def filter_func(z, p):
 N = 3
 N_exact = 127
 num_x = 128
-T     = 0.5
+T = 0.5
 # num_x = 128*4
 # T = 12
 
@@ -24,7 +23,7 @@ show_plot = 0
 # filter type
 # 0 - Off
 # 1 -  abs on every input
-# 2 - Alternating abs on moments 
+# 2 - Alternating abs on moments
 # 3 - Constant
 filter_type = 1
 
@@ -43,15 +42,12 @@ x_edges = torch.linspace(xl, xr, num_x + 1)
 x = torch.linspace(xl + dx / 2, xr - dx / 2, num_x)
 
 num_features = 2 * N + 4
-num_hidden   = N+2
-weight_decay = 0 
+num_hidden = 50
+weight_decay = 1e-5
 
 if filter_type == 3:
     num_hidden = 0
     num_features = 0
-
-filt_input = torch.arange(0, N + 1, 1) / (N + 1)
-filter     = -torch.log(filter_func(filt_input, filter_order))
 
 params = {
     "num_x": num_x,
@@ -70,7 +66,8 @@ params = {
     "L": L,
     "T": T,
     "filter_type": filter_type,
-    "weight_decay" : weight_decay,
-    "show_plot"    : show_plot,
-    "filter_order" : filter_order
- }
+    "weight_decay": weight_decay,
+    "show_plot": show_plot,
+    "filter_order": filter_order,
+    "const_net": 1,
+}

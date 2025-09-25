@@ -1,9 +1,10 @@
-** Neural Network-Based Adaptive Filtering of the Spherical Harmonic Method **  
-
+**Neural Network-Based Adaptive Filtering of the Spherical Harmonic Method** 
+ 
 Benjamin Plumridge, Cory Hauck, Steffen Schotthöfer  
-*To appear in the Journal of Scientific Computing, September 2025*  
 
 ---
+
+This repository contains code for training and testing neural network filters for the PN method in 1D and 2D radiative transfer. 
 
 ## Installation
 
@@ -51,7 +52,3 @@ This allows users to:
 - Reproduce specific figures or results from the paper.
 
 **Recommendation:** For most purposes, use `train_all.py` / `test_all.py` to reproduce all results.
-
-
-
-
