@@ -1,0 +1,1 @@
+{"_step":1,"P{N} error":0.1569836288690567,"_timestamp":1.7587591630312881e+09,"_wandb":{"runtime":0},"_runtime":0,"flux_P{N} error":0.08790238946676254,"flux_FP{N} error":0.025447310879826546,"total_error_reduction":0.8983301520347595,"flux_error_reduction":0.2894951105117798,"FP{N} error":0.14102312922477722}
