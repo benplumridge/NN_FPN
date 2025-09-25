@@ -35,17 +35,12 @@ def testing(params):
     show_plot = params["show_plot"]
 
     if filter_type in (1, 2):
-        model_filename = load_model(N, params["const_net"])
+        model_filename = load_model(N, params["const_net"], params["model_idx"])
         NN_model = torch.load(
             model_filename, map_location=torch.device(device), weights_only=False
         )
         NN_model.to(device)
         NN_model.eval()
-
-        # for name, param in NN_model.named_parameters():
-        #     if 'weight' in name and param.requires_grad:
-        #         norm = torch.norm(param).item()
-        #         print(f"Layer: {name} | Weight norm: {norm:.4f}")
 
     elif filter_type == 3:
         if N == 3:
@@ -137,30 +132,45 @@ def testing(params):
     flux_error_reduction = flux_errf / flux_err0
 
     # Initialize wandb
+    # wandb_init = True
+    # if wandb_init:
+    #     wandb.init(
+    #         project=f"1D_final",
+    #         # name=f"const_net" if params["const_net"] else f"simple_NN",
+    #         config=params,
+    #     )
+
+    #     # wandb.log({"T": T, "sigf": sigf, "exact": exact, "PN": PN, "FPN": FPN})
+    #     wandb.log(
+    #         {
+    #             "P{N} error": error0,
+    #             "FP{N} error": errorf,
+    #             "total_error_reduction": total_error_reduction,
+    #         }
+    #     )
+    #     wandb.log(
+    #         {
+    #             "flux_P{N} error": flux_err0,
+    #             "flux_FP{N} error": flux_errf,
+    #             "flux_error_reduction": flux_error_reduction,
+    #         }
+    #     )
+    #     wandb.finish()
+
     wandb_init = True
     if wandb_init:
         wandb.init(
             project=f"1D_final_results",
-            # name=f"const_net" if params["const_net"] else f"simple_NN",
             config=params,
         )
 
-        # wandb.log({"T": T, "sigf": sigf, "exact": exact, "PN": PN, "FPN": FPN})
-        wandb.log(
-            {
-                "P{N} error": error0,
-                "FP{N} error": errorf,
-                "total_error_reduction": total_error_reduction,
-            }
-        )
-        wandb.log(
-            {
-                "flux_P{N} error": flux_err0,
-                "flux_FP{N} error": flux_errf,
-                "flux_error_reduction": flux_error_reduction,
-            }
-        )
-        wandb.finish()
+    # Log flux_error_reduction under a dynamic name
+    wandb.log({
+        "flux_error_reduction": flux_error_reduction,
+        f"N{N}_Abl{params["ablation_idx"]}_iter{params["model_idx"]}": flux_error_reduction
+    })
+
+    wandb.finish()
 
     print(ic_type, "errors T =", T)
 
@@ -189,6 +199,15 @@ def testing(params):
     exact_flux = np.sqrt(2) * exact[:, 0]
     PN_flux = np.sqrt(2) * PN[:, 0]
     FPN_flux = np.sqrt(2) * FPN[:, 0]
+
+
+    import os
+
+    os.makedirs("results", exist_ok=True)
+    os.makedirs("results/Gaussian", exist_ok=True)
+    os.makedirs("results/Vanishing_Cross_Section", exist_ok=True)
+    os.makedirs("results/Discontinuous_Cross_Section", exist_ok=True)
+    os.makedirs("results/Reeds", exist_ok=True)
 
     plt.rcParams.update({"font.size": 16})
 
@@ -240,7 +259,7 @@ def testing(params):
     return 0
 
 
-def load_model(N, const_net):
+def load_model(N, const_net, model_idx):
     valid_N = {3, 7, 9}
     if N not in valid_N:
         raise ValueError(f"Invalid value for N: {N}. Expected one of {valid_N}.")
@@ -248,7 +267,7 @@ def load_model(N, const_net):
     filename = (
         f"trained_models/model_N{N}_const.pth"
         if const_net
-        else f"trained_models/model_N{N}.pth"
+        else f"trained_models/model_N{N}_{model_idx}.pth"
     )
     print("loading model from: ", filename)
     return filename

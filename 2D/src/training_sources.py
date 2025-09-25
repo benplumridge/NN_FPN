@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import matplotlib.colors as mcolors
 
 
 def frame_source(num_x, num_y, x, y):
@@ -79,3 +80,13 @@ def pulse_source(num_x, num_y, x, y):
                 source[l, m] = c
 
     return source
+
+    # plt.rcParams.update({"font.size": 16})
+    # fig, ax = plt.subplots(figsize= (6,5), constrained_layout=True)
+    # contour =   ax.contourf(y,x, source, levels=20, cmap='inferno')
+    # ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    # ax.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
+    # cbar = fig.colorbar(contour, ax=ax, orientation="vertical", shrink=0.8)
+    # # cbar.set_ticks([source.min(), source.max()])
+    # # cbar.set_ticklabels([f'{source.min()}', f'{source.max()}'])
+    # plt.show()

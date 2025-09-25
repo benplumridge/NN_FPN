@@ -18,9 +18,7 @@ def gaussian_training(num_x, num_y, x, y):
             psi0[l, m] = scale * torch.exp(
                 -(((x[m] - cx) ** 2) + (y[l] - cy) ** 2) / (2 * s**2)
             )
-
     sigt = sigs
-
     return psi0, source, sigs, sigt
 
 
@@ -59,7 +57,6 @@ def step(num_x, num_y, x, y):
                 psi0[l, m] = 20
 
     sigt = sigs
-
     return psi0, source, sigs, sigt
 
 
@@ -128,9 +125,7 @@ def hat(num_x, num_y, x, y):
             psi0[l, m] = torch.max(
                 torch.tensor(0.0), 1 - torch.abs(x[m]) - torch.abs(y[l])
             )
-
     sigt = sigs
-
     return psi0, source, sigs, sigt
 
 
@@ -194,40 +189,6 @@ def holhraum(params):
     sigs[y_bottom : y_bottom + wall_thickness, x_slice] = sigs_center_plate
     sigs[y_top - wall_thickness : y_top, x_slice] = sigs_center_plate
     sigs[y_slice, x_left : x_left + wall_thickness] = sigs_center_plate
-
-    # source[y_slice,:wall_thickness] = source_boundary
-
-    # sigt_np = sigt.numpy()
-    # sigs_np = sigs.numpy()
-    # source_np = source.numpy()
-
-    # sym_data = source_np
-    # source_sym = sym_data - np.flip(sym_data,axis = 0)
-    # print(np.abs(np.max(source_sym)))
-    # print(np.argmax(np.abs(np.max(source_sym))))
-    # print(source_sym)
-
-    # #Create a contour plot
-
-    # fig, axs = plt.subplots(1, 3, figsize=(13.5, 4.5), constrained_layout=True)
-
-    # contour1 = axs[0].contourf(y_edges,x_edges, sigt_np, levels=20, cmap='viridis')
-    # axs[0].set_title('sigt')
-    # plt.xlabel('x')
-    # plt.ylabel('y')
-
-    # contour2 =  axs[1].contourf(y_edges,x_edges, sigs_np, levels=20, cmap='viridis')
-    # axs[1].set_title('sigs')
-    # plt.xlabel('x')
-    # plt.ylabel('y')
-
-    # contour3 =  axs[2].contourf(y_edges,x_edges, source_np, levels=20, cmap='viridis')
-    # axs[2].set_title('source')
-    # plt.xlabel('x')
-    # plt.ylabel('y')
-
-    # fig.colorbar(contour1, ax=axs, orientation='vertical', shrink=0.8)
-    # plt.show()
 
     params["xl"] = xl
     params["xr"] = xr
@@ -335,16 +296,14 @@ def lattice(params):
     params["num_x"] = num_x
     params["num_y"] = num_y
 
-    # fig, ax = plt.subplots(constrained_layout=True)
-    # contour =   ax.contourf(y_edges,x_edges, source, levels=20, cmap='inferno')
-    # ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
-    # ax.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
-    # plt.show()
-
     return psi0, source, sigs, sigt, params
 
-    # fig, ax = plt.subplots(constrained_layout=True)
+    # plt.rcParams.update({"font.size": 16})
+    # fig, ax = plt.subplots(figsize= (6,5), constrained_layout=True)
     # contour =   ax.contourf(y,x, psi0, levels=20, cmap='inferno')
     # ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
     # ax.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
+    # cbar = fig.colorbar(contour, ax=ax, orientation="vertical", shrink=0.8)
+    # # cbar.set_ticks([psi0.min(), psi0.max()])
+    # # cbar.set_ticklabels([f'{psi0.min()}', f'{psi0.max()}'])
     # plt.show()

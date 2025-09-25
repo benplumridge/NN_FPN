@@ -20,5 +20,6 @@ params["batch_size"] = 1
 params["tt_flag"] = 1
 params["device"] = "cpu"
 params["IC_idx"] = IC_idx
+params["const_net"] = False
 
 testing(params)
