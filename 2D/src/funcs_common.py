@@ -24,7 +24,7 @@ class SimpleNN(nn.Module):
         original_shape = x.shape
         x = torch.flatten(x, start_dim=0, end_dim=2)
         #print("Flattened input shape:", x.shape)  # Debugging line
-        x = self.bn1(x)
+        #x = self.bn1(x)
         x = torch.tanh(self.hidden1(x))      # Activation hidden layer
         x = self.bn2(x)
         x = torch.tanh(self.hidden2(x)) + x  # Activation hidden layer
@@ -254,22 +254,27 @@ def preprocess_features(N, psi, dxpsi, dypsi, scattering, source, params):
         )
 
         index += num_m
+        
+    scattering_in = NN_normalization(scattering[:, :, :, None])
+    source_in = NN_normalization(source[:, :, :, None])
+    psi_in = NN_normalization(psi_norms)
+    dpsi_in = NN_normalization(dpsi_norms)
 
-    scattering_in = scattering[:, :, :, None]
-    source_in = source[:, :, :, None]
-    psi_in    = psi_norms
-    dpsi_in   = dpsi_norms
+    # scattering_in = scattering[:, :, :, None]
+    # source_in = source[:, :, :, None]
+    # psi_in    = psi_norms
+    # dpsi_in   = dpsi_norms
     inputs = torch.cat((psi_in, dpsi_in, scattering_in, source_in), dim=-1)
 
     return inputs
 
 
-# def NN_normalization(f):
-#     f_mean = torch.mean(f, dim=[1, 2], keepdim=True)
-#     f_std = torch.std(f, dim=[1, 2], keepdim=True)
+def NN_normalization(f):
+    f_mean = torch.mean(f, dim=[1, 2], keepdim=True)
+    f_std = torch.std(f, dim=[1, 2], keepdim=True)
 
-#     f_normalized = (f - f_mean) / (f_std + 1e-10)
-#     return f_normalized
+    f_normalized = (f - f_mean) / (f_std + 1e-10)
+    return f_normalized
 
 
 def timestepping(psi0, filt_switch, NN_model, params, sigs, sigt, N, num_basis, source):
