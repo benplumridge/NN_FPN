@@ -50,8 +50,8 @@ yl = -1
 yr = 1
 
 num_features = 2 * (N + 1) + 2
-#num_hidden = num_features // 2
-num_hidden = 100
+num_hidden = num_features // 2
+#num_hidden = 100
 
 num_basis = (N + 1) * (N + 2) // 2
 num_basis_exact = (N_exact + 1) * (N_exact + 2) // 2
