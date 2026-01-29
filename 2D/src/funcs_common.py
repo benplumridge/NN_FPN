@@ -24,15 +24,15 @@ class SimpleNN(nn.Module):
         original_shape = x.shape
         x = torch.flatten(x, start_dim=0, end_dim=2)
         # print("Flattened input shape:", x.shape)  # Debugging line
-        x = self.bn1(x)
+        #x = self.bn1(x)
         x = torch.tanh(self.hidden1(x))      # Activation hidden layer
         x = self.bn2(x)
-        # x = torch.tanh(self.hidden2(x)) + x  # Activation hidden layer
-        # x = self.bn3(x)
-        # x = torch.tanh(self.hidden3(x)) + x  # Activation hidden layer
-        # x = self.bn4(x)
-        # x = torch.tanh(self.hidden4(x)) + x  # Activation hidden layer
-        # x = self.bn5(x)
+        x = torch.tanh(self.hidden2(x)) + x  # Activation hidden layer
+        x = self.bn3(x)
+        x = torch.tanh(self.hidden3(x)) + x  # Activation hidden layer
+        x = self.bn4(x)
+        x = torch.tanh(self.hidden4(x)) + x  # Activation hidden layer
+        x = self.bn5(x)
         x = torch.relu(self.output(x))  # Activation output layer
         output_shape = [original_shape[0], original_shape[1], original_shape[2], 1]
         return x.reshape(output_shape)
@@ -255,15 +255,15 @@ def preprocess_features(N, psi, dxpsi, dypsi, scattering, source, params):
 
         index += num_m
 
-    # scattering_in = NN_normalization(scattering[:, :, :, None])
-    # source_in = NN_normalization(source[:, :, :, None])
-    # psi_in = NN_normalization(psi_norms)
-    # dpsi_in = NN_normalization(dpsi_norms)
+    scattering_in = NN_normalization(scattering[:, :, :, None])
+    source_in = NN_normalization(source[:, :, :, None])
+    psi_in = NN_normalization(psi_norms)
+    dpsi_in = NN_normalization(dpsi_norms)
 
-    scattering_in = scattering[:, :, :, None]
-    source_in = source[:, :, :, None]
-    psi_in    = psi_norms
-    dpsi_in   = dpsi_norms
+    # scattering_in = scattering[:, :, :, None]
+    # source_in = source[:, :, :, None]
+    # psi_in    = psi_norms
+    # dpsi_in   = dpsi_norms
     inputs = torch.cat((psi_in, dpsi_in, scattering_in, source_in), dim=-1)
 
     return inputs
