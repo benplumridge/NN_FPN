@@ -302,6 +302,8 @@ def minmod(a, b):
     mm = torch.where((torch.abs(b) < torch.abs(a)) & (a * b > 0), b, mm)
     return mm
 
+def filter_func(z, p):
+    return torch.exp(-(z**p))
 
 def obj_func(z,dx):  
     #return torch.mean(z**2)
