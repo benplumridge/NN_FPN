@@ -102,24 +102,38 @@ def testing(params, j, run_times):
         sigt = compute_cell_average(sigt_edges, batch_size, num_x)
         source = compute_cell_average(source_edges, batch_size, num_x)
 
+        use_cuda = device != "cpu" and torch.cuda.is_available()
+
+        if use_cuda:
+            torch.cuda.synchronize()
         start = time.perf_counter()
         exact = timestepping(
             psi0, 0, 0, params, sigs, sigt, N_exact, source, batch_size, device
         )[0]
+        if use_cuda:
+            torch.cuda.synchronize()
         exact_time = time.perf_counter() - start
         print(f"Exact elapsed time: {exact_time:.4f} seconds")
 
+        if use_cuda:
+            torch.cuda.synchronize()
         start = time.perf_counter()
         PN = timestepping(
             psi0, 0, 0, params, sigs, sigt, N, source, batch_size, device
         )[0]
+        if use_cuda:
+            torch.cuda.synchronize()
         PN_time = time.perf_counter() - start
         print(f"PN elapsed time: {PN_time:.4f} seconds")
 
+        if use_cuda:
+            torch.cuda.synchronize()
         start = time.perf_counter()
         FPN, sigf = timestepping(
             psi0, 1, NN_model, params, sigs, sigt, N, source, batch_size, device
         )
+        if use_cuda:
+            torch.cuda.synchronize()
         FPN_time = time.perf_counter() - start
         print(f"FPN elapsed time: {FPN_time:.4f} seconds")
 

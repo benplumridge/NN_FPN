@@ -94,15 +94,7 @@ def f_param(l, k):
     return torch.sqrt(((l + k) * (l + k - 1)) / ((2 * l + 1) * (2 * l - 1)))
 
 
-def upwind_flux(N, num_basis, psi, params):
-    IC_idx = params["IC_idx"]
-    dx = params["dx"]
-    dy = params["dy"]
-    num_x = params["num_x"]
-    num_y = params["num_y"]
-    batch_size = params["batch_size"]
-    device = params["device"]
-
+def compute_flux_matrices(N, device):
     Ax, Ay = compute_PN_matrices(N)
     Ax = Ax.to(device)
     Ay = Ay.to(device)
@@ -125,7 +117,6 @@ def upwind_flux(N, num_basis, psi, params):
     Ay_plus = torch.matmul(torch.matmul(Vy, eig_Ay_plus), Vy.T)
     Ay_minus = torch.matmul(torch.matmul(Vy, eig_Ay_minus), Vy.T)
 
-    # Clean flux matrices
     threshold = 1e-6
     Ax_plus = torch.where(
         torch.abs(Ax_plus) < threshold,
@@ -147,6 +138,19 @@ def upwind_flux(N, num_basis, psi, params):
         torch.zeros_like(Ay_minus, dtype=torch.float32),
         Ay_minus.to(torch.float32),
     )
+
+    return Ax, Ay, Ax_plus, Ax_minus, Ay_plus, Ay_minus
+
+
+def upwind_flux(N, num_basis, psi, params, flux_mats):
+    Ax, Ay, Ax_plus, Ax_minus, Ay_plus, Ay_minus = flux_mats
+    IC_idx = params["IC_idx"]
+    dx = params["dx"]
+    dy = params["dy"]
+    num_x = params["num_x"]
+    num_y = params["num_y"]
+    batch_size = params["batch_size"]
+    device = params["device"]
 
     f_plus  = torch.zeros([batch_size, num_y, num_x, num_basis], device=device)
     f_minus = torch.zeros([batch_size, num_y, num_x, num_basis], device=device)
@@ -286,16 +290,18 @@ def timestepping(psi0, filt_switch, NN_model, params, sigs, sigt, N, num_basis, 
     batch_size = params["batch_size"]
     device = params["device"]
 
+    flux_mats = compute_flux_matrices(N, device)
+
     psi_prev = torch.zeros([batch_size, num_y, num_x, num_basis], device=device)
     psi_prev[:, :, :, 0] = psi0
 
     for k in range(1, num_t + 1):
         psi1_update = PN_update(
-            psi_prev, N, params, num_basis, sigt, sigs, filt_switch, source, NN_model
+            psi_prev, N, params, num_basis, sigt, sigs, filt_switch, source, NN_model, flux_mats
         )[0]
         psi1 = psi_prev + dt * psi1_update
         psi2_update, sigf = PN_update(
-            psi1, N, params, num_basis, sigt, sigs, filt_switch, source, NN_model
+            psi1, N, params, num_basis, sigt, sigs, filt_switch, source, NN_model, flux_mats
         )
         psi = psi_prev + 0.5 * dt * (psi1_update + psi2_update)
         psi_prev = psi
@@ -303,7 +309,7 @@ def timestepping(psi0, filt_switch, NN_model, params, sigs, sigt, N, num_basis, 
 
 
 def PN_update(
-    psi_prev, N, params, num_basis, sigt, sigs, filt_switch, source, NN_model
+    psi_prev, N, params, num_basis, sigt, sigs, filt_switch, source, NN_model, flux_mats
 ):
 
     num_x = params["num_x"]
@@ -317,7 +323,7 @@ def PN_update(
     filter_type = params["filter_type"]
     filter = filter.to(device)
 
-    fluxes, A_dxpsi, A_dypsi = upwind_flux(N, num_basis, psi_prev, params)
+    fluxes, A_dxpsi, A_dypsi = upwind_flux(N, num_basis, psi_prev, params, flux_mats)
 
     if tt_flag == 0:
         sigt_psi   = sigt[:, None, None, None] * psi_prev
