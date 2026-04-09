@@ -45,7 +45,7 @@ class SimpleNN(nn.Module):
 
 
 def timestepping(
-    y0, filter_type, NN_model, params, sigs, sigt, N, source, batch_size, device
+    y0, filter_type, NN_model, params, sigs, sigt, N, source, batch_size, device, A, absA
 ):
     dt = params["dt"]
     dx = params["dx"]
@@ -54,18 +54,19 @@ def timestepping(
 
     num_x = params["num_x"]
     num_t = params["num_t"]
+    method_order = params["method_order"]
 
     # CONSTRUCT A vector: does not need updating
-    a = torch.zeros(N)
+    # a = torch.zeros(N)
 
-    for n in range(1, N + 1):
-        a[n - 1] = n / np.sqrt((2 * n - 1) * (2 * n + 1))
-    A = torch.diag(a, 1) + torch.diag(a, -1)
+    # for n in range(1, N + 1):
+    #     a[n - 1] = n / np.sqrt((2 * n - 1) * (2 * n + 1))
+    # A = torch.diag(a, 1) + torch.diag(a, -1)
 
-    eigA, V = torch.linalg.eig(A)
-    eigA = torch.real(eigA)
-    V = torch.real(V)
-    absA = torch.matmul(torch.matmul(V, torch.diag(torch.abs(eigA))), torch.linalg.inv(V))
+    # eigA, V = torch.linalg.eig(A)
+    # eigA = torch.real(eigA)
+    # V = torch.real(V)
+    # absA = torch.matmul(torch.matmul(V, torch.diag(torch.abs(eigA))), torch.linalg.inv(V))
 
     source = source.to(device)
 
@@ -87,7 +88,7 @@ def timestepping(
         sigs_in = sigs[:, :, None]
 
     for k in range(1, num_t + 1):
-        y1_update = PN_update(
+        y1_update, sigf = PN_update(
             params,
             y_prev,
             A,
@@ -99,31 +100,33 @@ def timestepping(
             source_in,
             sigt_in,
             sigs_in,
-        )[0]
+        )
         y1 = y_prev + dt * y1_update
 
         # boundary conditions for Reeds problem: reflecting at x = 0 and vacauum at x = 8
         if IC_idx == 6:
             y1 = reeds_BC(y1, N)
+        if method_order == 1:
+            y = y1
+        elif method_order == 2:
+            y2_update, sigf = PN_update(
+                params,
+                y1,
+                A,
+                absA,
+                N,
+                source,
+                filter_type,
+                NN_model,
+                source_in,
+                sigt_in,
+                sigs_in,
+            )
+            y = y_prev + 0.5 * dt * (y1_update + y2_update)
 
-        y2_update, sigf = PN_update(
-            params,
-            y1,
-            A,
-            absA,
-            N,
-            source,
-            filter_type,
-            NN_model,
-            source_in,
-            sigt_in,
-            sigs_in,
-        )
-        y = y_prev + 0.5 * dt * (y1_update + y2_update)
-
-        # boundary conditions for Reeds problem: reflecting at x = 0 and vacauum at x = 8
-        if IC_idx == 6:
-            y = reeds_BC(y, N)
+            # boundary conditions for Reeds problem: reflecting at x = 0 and vacauum at x = 8
+            if IC_idx == 6:
+                y = reeds_BC(y, N)
         y_prev = y
 
     return y, sigf
@@ -146,7 +149,8 @@ def PN_update(
     IC_idx = params["IC_idx"]
     num_x = params["num_x"]
     dx    = params["dx"]
-    
+    method_order = params["method_order"]
+
     filter_order = params["filter_order"]
     filt_input = torch.arange(0, N + 1, 1) / (N + 1)
     filter = -torch.log(filter_func(filt_input, filter_order))
@@ -160,13 +164,13 @@ def PN_update(
         y_expand[:, 0, :] = y_prev[:, num_x - 1, :]
         y_expand[:, num_x + 1, :] = y_prev[:, 0, :]
 
+    if method_order == 2:
+        slope[:, 1 : num_x + 1, :] = minmod(y_expand[:, 2 : num_x + 2, :] - y_expand[:, 1 : num_x + 1, :],
+                                    y_expand[:, 1 : num_x + 1, :] - y_expand[:, 0:num_x, :])
 
-    slope[:, 1 : num_x + 1, :] = minmod(y_expand[:, 2 : num_x + 2, :] - y_expand[:, 1 : num_x + 1, :],
-                                y_expand[:, 1 : num_x + 1, :] - y_expand[:, 0:num_x, :])
-
-    if IC_idx != 6:
-        slope[:,0,:]       = slope[:,num_x,:]
-        slope[:,num_x+1,:] = slope[:,1,:]
+        if IC_idx != 6:
+            slope[:,0,:]       = slope[:,num_x,:]
+            slope[:,num_x+1,:] = slope[:,1,:]
 
 
     yL_plus = y_expand[:, 1 : num_x + 1, :] + 0.5*slope[:,1:num_x+1,:]
@@ -277,8 +281,8 @@ def minmod(a, b):
     return mm
 
 
-def obj_func(z):
-    return torch.mean(z**2)
+def obj_func(z, dx):
+    return torch.mean(dx*z**2)
     # return (dx * z.pow(2).sum(dim=1)).mean()
 
 

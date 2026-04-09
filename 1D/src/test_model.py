@@ -14,7 +14,7 @@ from IC import (
     disc_cs,
     reeds,
 )
-import wandb
+#import wandb
 
 
 def testing(params, j, run_times):
@@ -102,23 +102,47 @@ def testing(params, j, run_times):
         sigt = compute_cell_average(sigt_edges, batch_size, num_x)
         source = compute_cell_average(source_edges, batch_size, num_x)
 
+        # CONSTRUCT A vector: does not need updating
+        a = torch.zeros(N)
+
+        for n in range(1, N + 1):
+            a[n - 1] = n / np.sqrt((2 * n - 1) * (2 * n + 1))
+        A = torch.diag(a, 1) + torch.diag(a, -1)
+
+        eigA, V = torch.linalg.eig(A)
+        eigA = torch.real(eigA)
+        V = torch.real(V)
+        absA = torch.matmul(torch.matmul(V, torch.diag(torch.abs(eigA))), torch.linalg.inv(V))
+
+        # CONSTRUCT A vector: does not need updating
+        a_exact = torch.zeros(N_exact)
+
+        for n in range(1, N_exact + 1):
+            a_exact[n - 1] = n / np.sqrt((2 * n - 1) * (2 * n + 1))
+        A_exact = torch.diag(a_exact, 1) + torch.diag(a_exact, -1)
+
+        eigA_exact, V_exact = torch.linalg.eig(A_exact)
+        eigA_exact = torch.real(eigA_exact)
+        V_exact = torch.real(V_exact)
+        absA_exact = torch.matmul(torch.matmul(V_exact, torch.diag(torch.abs(eigA_exact))), torch.linalg.inv(V_exact))
+
         start = time.perf_counter()
         exact = timestepping(
-            psi0, 0, 0, params, sigs, sigt, N_exact, source, batch_size, device
+            psi0, 0, 0, params, sigs, sigt, N_exact, source, batch_size, device, A_exact, absA_exact
         )[0]
         exact_time = time.perf_counter() - start
         print(f"Exact elapsed time: {exact_time:.4f} seconds")
 
         start = time.perf_counter()
         PN = timestepping(
-            psi0, 0, 0, params, sigs, sigt, N, source, batch_size, device
+            psi0, 0, 0, params, sigs, sigt, N, source, batch_size, device, A, absA
         )[0]
         PN_time = time.perf_counter() - start
         print(f"PN elapsed time: {PN_time:.4f} seconds")
 
         start = time.perf_counter()
         FPN, sigf = timestepping(
-            psi0, 1, NN_model, params, sigs, sigt, N, source, batch_size, device
+            psi0, 1, NN_model, params, sigs, sigt, N, source, batch_size, device, A, absA
         )
         FPN_time = time.perf_counter() - start
         print(f"FPN elapsed time: {FPN_time:.4f} seconds")
@@ -170,31 +194,31 @@ def testing(params, j, run_times):
     #     wandb.finish()
 
     #wandb_init = True
-    wandb_init = False
-    if wandb_init:
-        wandb.init(
-        project="Ablation_N7",
-        name=f"const_net" if params["const_net"] else f"simple_NN",
-        config={
-            "N": N,
-            "ablation_idx": params["ablation_idx"],
-            "model_idx": params["model_idx"],
-        }
+    # wandb_init = False
+    # if wandb_init:
+    #     wandb.init(
+    #     project="Ablation_N7",
+    #     name=f"const_net" if params["const_net"] else f"simple_NN",
+    #     config={
+    #         "N": N,
+    #         "ablation_idx": params["ablation_idx"],
+    #         "model_idx": params["model_idx"],
+    #     }
         # config={
         #     "N": N,
         #     "IC_idx": params["IC_idx"],
         #     "model_idx": params["model_idx"],
         #     "T"        : T
         # }
-     )
+     #)
 
         # Log flux_error_reduction under a dynamic name
-        wandb.log({
-            "flux_error_reduction": flux_error_reduction,
-            f"N{N}_Abl{params["ablation_idx"]}_iter{params["model_idx"]}": flux_error_reduction
-        })
+        # wandb.log({
+        #     "flux_error_reduction": flux_error_reduction,
+        #     f"N{N}_Abl{params["ablation_idx"]}_iter{params["model_idx"]}": flux_error_reduction
+        # })
 
-        wandb.finish()
+       # wandb.finish()
 
     print(ic_type, "errors T =", T)
 
@@ -280,7 +304,7 @@ def testing(params, j, run_times):
     # ax.set_xlabel('x')
     # plt.show()
     plt.close()
-    return 0
+    return flux_err0, flux_errf
 
 
 def load_model(N, const_net, model_idx):
