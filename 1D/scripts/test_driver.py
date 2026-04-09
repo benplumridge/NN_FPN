@@ -6,7 +6,7 @@
 # 4 - Bump
 # 5 - Discontinuous Source
 # 6 - Reeds
-IC_idx = 0
+IC_idx = 6
 
 import sys
 import os
@@ -22,15 +22,32 @@ params["tt_flag"] = 1
 params["device"] = "cpu"
 params["IC_idx"] = IC_idx
 params["const_net"] = False
-#params["model_idx"] = 1
+params["model_idx"] = 0
 params["ablation_idx"] = 0
 
+error_FPN = []
+
 num_its = 5
+
+
+
 with open("testing_times.txt", "w") as run_times:
+
+    #warmup runs 
+    for j in range(num_its):
+        err_PN, err_FPN_out = testing(params, j, run_times)
+        error_FPN.append(err_FPN_out)
+
+    #saved runs
     run_times.write("# exact_time  PN_time  FPN_time\n")
     for j in range(num_its):
-        testing(params, j, run_times)
+        err_PN, err_FPN_out = testing(params, j, run_times)
+        error_FPN.append(err_FPN_out)
 
+mean_val = np.mean(error_FPN)
+std_val  = np.std(error_FPN)
+
+print(f"mean FPN error = ", mean_val, "std dev =", std_val)
 
 data = np.loadtxt("testing_times.txt", comments="#")
 
