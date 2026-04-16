@@ -4,6 +4,9 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 import numpy as np
 import time
+import cProfile
+import pstats 
+
 from funcs_common import SimpleNN, obj_func, timestepping, compute_cell_average
 from IC import (
     gaussian_testing,
@@ -15,6 +18,7 @@ from IC import (
     reeds,
 )
 #import wandb
+
 
 
 def testing(params, j, run_times):
@@ -126,26 +130,58 @@ def testing(params, j, run_times):
         V_exact = torch.real(V_exact)
         absA_exact = torch.matmul(torch.matmul(V_exact, torch.diag(torch.abs(eigA_exact))), torch.linalg.inv(V_exact))
 
-        start = time.perf_counter()
-        exact = timestepping(
+
+
+        
+        # profiler = cProfile.Profile()
+        # profiler.enable()
+
+        #start = time.perf_counter()
+        exact, sigf, start = timestepping(
             psi0, 0, 0, params, sigs, sigt, N_exact, source, batch_size, device, A_exact, absA_exact
-        )[0]
+        )
         exact_time = time.perf_counter() - start
         print(f"Exact elapsed time: {exact_time:.4f} seconds")
 
-        start = time.perf_counter()
-        PN = timestepping(
+        # profiler.disable()
+
+        # stats = pstats.Stats(profiler)
+        # stats.sort_stats('cumtime')   # most useful
+        # stats.print_stats(20)         # top 20 functions
+
+
+        # profiler = cProfile.Profile()
+        # profiler.enable()
+
+        #start = time.perf_counter()
+        PN, sigf, start = timestepping(
             psi0, 0, 0, params, sigs, sigt, N, source, batch_size, device, A, absA
-        )[0]
+        )
         PN_time = time.perf_counter() - start
         print(f"PN elapsed time: {PN_time:.4f} seconds")
 
-        start = time.perf_counter()
-        FPN, sigf = timestepping(
+        # profiler.disable()
+        # stats = pstats.Stats(profiler)
+        # stats.sort_stats('cumtime')   # most useful
+        # stats.print_stats(20)         # top 20 functions
+
+
+        # profiler = cProfile.Profile()
+        # profiler.enable()
+
+
+        #start = time.perf_counter()
+        FPN, sigf, start = timestepping(
             psi0, 1, NN_model, params, sigs, sigt, N, source, batch_size, device, A, absA
         )
         FPN_time = time.perf_counter() - start
         print(f"FPN elapsed time: {FPN_time:.4f} seconds")
+
+
+        # profiler.disable()
+        # stats = pstats.Stats(profiler)
+        # stats.sort_stats('cumtime')   # most useful
+        # stats.print_stats(20)         # top 20 functions
 
         run_times.write(f"{exact_time:.4f} {PN_time:.4f} {FPN_time:.4f}\n")
 

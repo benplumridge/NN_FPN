@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import torch.nn as nn
-
+import time
 
 # class SimpleNN_const(nn.Module):
 
@@ -88,6 +88,10 @@ def timestepping(
         sigs_in = sigs[:, :, None]
 
     for k in range(1, num_t + 1):
+
+        if k == round(num_t//2):
+            start = time.perf_counter()
+
         y1_update, sigf = PN_update(
             params,
             y_prev,
@@ -129,7 +133,7 @@ def timestepping(
                 y = reeds_BC(y, N)
         y_prev = y
 
-    return y, sigf
+    return y, sigf, start
 
 def PN_update(
     params,

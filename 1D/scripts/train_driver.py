@@ -14,8 +14,8 @@ from numpy import savetxt
 # Add src to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 from params_common import params
-from funcs_common import filter_func
-from train_model import training
+from funcs_common  import filter_func
+from train_model   import training
 
 import argparse
 
@@ -50,7 +50,7 @@ params["device"] = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 params["ablation_idx"] = 0
 
 params["num_features"] = 2 * N + 4
-params["num_hidden"] = N + 2
+params["num_hidden"] = 50
 print("N = ", N)
 filt_input = torch.arange(0, N + 1, 1) / (N + 1)
 
