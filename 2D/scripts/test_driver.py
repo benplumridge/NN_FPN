@@ -14,7 +14,7 @@ from test_model import testing
 # 4 - Hat
 # 5 - Holhraum
 # 6 - lattice
-params["IC_idx"] = 4
+params["IC_idx"] = 0
 
 params["batch_size"] = 1
 params["tt_flag"] = 1
