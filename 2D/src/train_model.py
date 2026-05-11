@@ -1,7 +1,7 @@
 import torch.optim as optim
 import torch
 import numpy as np
-from funcs_common import SimpleNN, obj_func, timestepping, compute_cell_average
+from funcs_common import SimpleNN, obj_func, obj_func_time, timestepping, compute_cell_average
 from IC import gaussian_training, step, disc_source, bump, hat
 from training_sources import (
     frame_source,
@@ -31,6 +31,7 @@ def training(params):
     GD_optimizer = params["GD_optimizer"]
     num_IC = params["num_IC"]
     device = params["device"]
+    obj_idx = params["obj_idx"]
 
     NN_model = SimpleNN(num_features, num_hidden)
 
@@ -103,7 +104,10 @@ def training(params):
         )[0]
         FPN = FPN.to("cpu")
         exact = exact.to("cpu")
-        loss = obj_func(FPN[:, :, :, 0] - exact[:, :, :, 0])
+        if obj_idx in {0,1}:
+            loss = obj_func(FPN[:, :, :, 0] - exact[:, :, :, 0])
+        elif obj_idx == 2:
+            loss = obj_func_time(FPN[:, :, :, :, 0] - exact[:, :, :, :, 0])
         loss.backward()
         opt.step()
         print(torch.sqrt(loss))

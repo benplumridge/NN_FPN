@@ -32,7 +32,6 @@ elif GD_opt_flag == 1:
     params["GD_optimizer"] = "Adam"
 
 
-
 def filter_func(z, p):
     return torch.exp(-(z**p))
 

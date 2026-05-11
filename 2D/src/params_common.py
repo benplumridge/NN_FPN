@@ -28,6 +28,8 @@ N_exact = 37
 num_x = 100
 T = 0.75
 
+obj_idx = 2
+
 filter_order = 4
 
 # filter type
@@ -116,5 +118,6 @@ params = {
     "plot_idx": plot_idx,
     "show_plots": show_plots,
     "show_sym_errors": show_sym_errors,
-    "show_slices": show_slices
+    "show_slices": show_slices,
+    "obj_idx"    : obj_idx
 }

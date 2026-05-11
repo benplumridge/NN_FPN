@@ -37,10 +37,12 @@ class SimpleNN(nn.Module):
         output_shape = [original_shape[0], original_shape[1], original_shape[2], 1]
         return x.reshape(output_shape)
 
-
 def obj_func(z):
     return torch.mean(z**2)
 
+def obj_func_time(z):
+    dims = tuple(i for i in range(z.ndim) if i != 1)
+    return torch.sum(torch.mean(z**2, dim=dims))
 
 def minmod(a, b):
     return 0.5 * (torch.sign(a) + torch.sign(b)) * torch.min(torch.abs(a), torch.abs(b))
@@ -260,10 +262,6 @@ def preprocess_features(N, psi, dxpsi, dypsi, scattering, source, params):
     psi_in = NN_normalization(psi_norms)
     dpsi_in = NN_normalization(dpsi_norms)
 
-    # scattering_in = scattering[:, :, :, None]
-    # source_in = source[:, :, :, None]
-    # psi_in    = psi_norms
-    # dpsi_in   = dpsi_norms
     inputs = torch.cat((psi_in, dpsi_in, scattering_in, source_in), dim=-1)
 
     return inputs
@@ -285,11 +283,15 @@ def timestepping(psi0, filt_switch, NN_model, params, sigs, sigt, N, num_basis, 
     dt = params["dt"]
     batch_size = params["batch_size"]
     device = params["device"]
+    obj_idx = params["obj_idx"]
 
     psi_prev = torch.zeros([batch_size, num_y, num_x, num_basis], device=device)
     psi_prev[:, :, :, 0] = psi0
 
-    for k in range(1, num_t + 1):
+    if obj_idx == 2:
+        psi_out = torch.zeros([batch_size, num_t, num_y, num_x, num_basis])
+
+    for k in range(num_t):
         psi1_update = PN_update(
             psi_prev, N, params, num_basis, sigt, sigs, filt_switch, source, NN_model
         )[0]
@@ -299,7 +301,12 @@ def timestepping(psi0, filt_switch, NN_model, params, sigs, sigt, N, num_basis, 
         )
         psi = psi_prev + 0.5 * dt * (psi1_update + psi2_update)
         psi_prev = psi
-    return psi_prev, sigf[0, :, :]
+
+        if obj_idx == 2:
+            psi_out[:,k,:,:,:] = psi
+    if obj_idx in {0,1}:
+        psi_out = psi
+    return psi_out, sigf[0, :, :]
 
 
 def PN_update(
@@ -371,90 +378,6 @@ def compute_cell_average(f, num_x, num_y, num_funcs):
                 f[:, l, m] + f[:, l, m + 1] + f[:, l + 1, m] + f[:, l + 1, m + 1]
             )
     return average
-
-
-def reconstruction(
-    f_coarse,
-    x_fine,
-    y_fine,
-    x_coarse,
-    y_coarse,
-    num_x,
-    num_y,
-    dx,
-    dy,
-    num_y_fine,
-    num_x_fine,
-    num_y_fine_factor,
-    num_x_fine_factor,
-):
-    f_coarse_expanded = torch.zeros(
-        num_y + 2, num_x + 2, dtype=f_coarse.dtype, device=f_coarse.device
-    )
-    f_coarse_expanded[1:-1, 1:-1] = f_coarse
-
-    # f_coarse_expanded[0,1:-1]  = f_coarse[0,:]
-    # f_coarse_expanded[-1,1:-1] = f_coarse[-1,:]
-    # f_coarse_expanded[1:-1,0]  = f_coarse[:,0]
-    # f_coarse_expanded[1:-1,-1] = f_coarse[:,-1]
-    # f_coarse_expanded[0, 0]    = f_coarse[0, 0]
-    # f_coarse_expanded[0, -1]   = f_coarse[0, -1]
-    # f_coarse_expanded[-1, 0]   = f_coarse[-1, 0]
-    # f_coarse_expanded[-1, -1]  = f_coarse[-1, -1]
-
-    grad_x = torch.zeros(num_y, num_x)
-    grad_y = torch.zeros(num_y, num_x)
-
-    grad_x = (f_coarse_expanded[1:-1, 2:] - f_coarse_expanded[1:-1, :-2]) / (2 * dx)
-    grad_y = (f_coarse_expanded[2:, 1:-1] - f_coarse_expanded[:-2, 1:-1]) / (2 * dy)
-
-    grad_x[:, 0] = (f_coarse[:, 1] - f_coarse[:, 0]) / dx
-    grad_x[:, num_x - 1] = (f_coarse[:, num_x - 1] - f_coarse[:, num_x - 2]) / dx
-    grad_y[0, :] = (f_coarse[1, :] - f_coarse[0, :]) / dx
-    grad_y[num_y - 1, :] = (f_coarse[num_y - 1, :] - f_coarse[num_y - 2, :]) / dx
-
-    f_fine = torch.zeros(
-        num_y_fine, num_x_fine, dtype=f_coarse.dtype, device=f_coarse.device
-    )
-
-    for m in range(num_y):
-        for n in range(num_x):
-            for m_ref in range(num_y_fine_factor):
-                for n_ref in range(num_x_fine_factor):
-                    fine_m = m * num_y_fine_factor + m_ref
-                    fine_n = n * num_x_fine_factor + n_ref
-                    f_fine[fine_m, fine_n] = (
-                        f_coarse[m, n]
-                        + grad_x[m, n] * (x_fine[fine_n] - x_coarse[n])
-                        + grad_y[m, n] * (y_fine[fine_m] - y_coarse[m])
-                    )
-
-    for m in range(num_y):
-        for m_ref in range(num_y_fine_factor):
-            fine_m = m * num_y_fine_factor + m_ref
-            f_fine[fine_m, num_x_fine - 1] = (
-                f_coarse[m, num_x - 1]
-                + grad_x[m, num_x - 1] * (x_fine[num_x_fine - 1] - x_coarse[num_x - 1])
-                + grad_y[m, num_x - 1] * (y_fine[fine_m] - y_coarse[m])
-            )
-
-    for n in range(num_x):
-        for n_ref in range(num_x_fine_factor):
-            fine_n = n * num_x_fine_factor + n_ref
-            f_fine[num_y_fine - 1, fine_n] = (
-                f_coarse[num_y - 1, n]
-                + grad_x[num_y - 1, n] * (x_fine[fine_n] - x_coarse[n])
-                + grad_y[num_y - 1, n] * (y_fine[num_y_fine - 1] - y_coarse[num_y - 1])
-            )
-
-    f_fine[num_y_fine - 1, num_x_fine - 1] = (
-        f_coarse[num_y - 1, num_x - 1]
-        + grad_x[num_y - 1, num_x - 1] * (x_fine[num_x_fine - 1] - x_coarse[num_x - 1])
-        + grad_y[num_y - 1, num_x - 1] * (y_fine[num_y_fine - 1] - y_coarse[num_y - 1])
-    )
-
-    return f_fine
-
 
 def rotation_test(psi):
     rot_error = np.zeros(2)
