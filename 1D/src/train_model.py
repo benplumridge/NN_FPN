@@ -1,6 +1,6 @@
 import torch
 import torch.optim as optim
-from funcs_common import SimpleNN, obj_func, timestepping, compute_cell_average
+from funcs_common import SimpleNN, SimpleNN_const, obj_func, obj_func_time, timestepping, compute_cell_average
 from IC import gaussian_training, heaviside, bump, disc_source
 
 
@@ -24,9 +24,13 @@ def training(params):
     x_edges = params["x_edges"]
     device = params["device"]
     filter_type = params["filter_type"]
+    obj_idx   = params["obj_idx"]
 
+    if filter_type in (1,2):
+        NN_model = SimpleNN(num_features, num_hidden,N)
+    elif filter_type == 3:
+        NN_model = SimpleNN_const()
 
-    NN_model = SimpleNN(num_features, num_hidden)
     NN_model = NN_model.to(device)
     if GD_optimizer == "SGD":
         opt = optim.SGD(
@@ -66,7 +70,14 @@ def training(params):
 
         psi = psi.to("cpu")
         exact = exact.to("cpu")
-        loss = obj_func(psi[:, :, 0] - exact[:, :, 0],dx)
+
+        if obj_idx == 0:
+            loss = obj_func(psi[:, :, 0] - exact[:, :, 0])
+        elif obj_idx == 1:
+            loss = obj_func(psi - exact[:, :, :N+1])
+        elif obj_idx ==2:
+            loss = obj_func_time(psi[:, :, :, 0] - exact[:, :, :, 0])
+        
         loss.backward()
         opt.step()
 
@@ -74,13 +85,5 @@ def training(params):
         if torch.isnan(loss):
             print("NaN loss detected. Stopping training.")
             break
-
-        # total_norm = 0.0
-        # for p in NN_model.parameters():
-        #     if p.grad is not None:
-        #         param_norm = p.grad.data.norm(2)  # L2 norm of this parameter's gradient
-        #         total_norm += param_norm.item() ** 2
-        # total_norm = total_norm ** 0.5
-        # print(f"Gradient norm: {total_norm:.4e}")
 
     return NN_model

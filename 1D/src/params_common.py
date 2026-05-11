@@ -3,23 +3,17 @@ import torch.nn as nn
 import torch.optim as optim
 
 
-def filter_func(z, p):
-    return torch.exp(-(z**p))
-
-
-# N = 3: 27.1199
-# N = 7: 16.1425
-# N = 9: 10.2298
-
 N = 3
 N_exact = 127
 num_x = 128
 T     = 0.5
-# num_x = 128*4
-# T = 12
+num_x = 128*4
+T = 5
 
 # show plot = 1 -> plot
 show_plot = 0
+
+method_order = 2
 
 # filter type
 # 0 - Off
@@ -27,6 +21,12 @@ show_plot = 0
 # 2 - Alternating abs on moments 
 # 3 - Constant
 filter_type = 1
+
+# objective functional index
+# 0 - scalar flux at final time
+# 1 - all moments at final time
+# 2 - scalar flux in time
+obj_idx = 0
 
 xl = -1
 xr = 1
@@ -42,16 +42,14 @@ num_t = int((T + dt) // dt)
 x_edges = torch.linspace(xl, xr, num_x + 1)
 x = torch.linspace(xl + dx / 2, xr - dx / 2, num_x)
 
-num_features = 2 * N + 4
-num_hidden   = N+2
-weight_decay = 0 
-
-if filter_type == 3:
+if filter_type in (1,2): 
+    num_features = 2 * N + 4
+    num_hidden   = 50
+    weight_decay = 1e-5
+elif filter_type == 3:
     num_hidden = 0
     num_features = 0
-
-filt_input = torch.arange(0, N + 1, 1) / (N + 1)
-filter     = -torch.log(filter_func(filt_input, filter_order))
+    weight_decay = 1e-6
 
 params = {
     "num_x": num_x,
@@ -60,7 +58,6 @@ params = {
     "N_exact": N_exact,
     "num_features": num_features,
     "num_hidden": num_hidden,
-    "filter": filter,
     "dx": dx,
     "dt": dt,
     "x": x,
@@ -72,5 +69,7 @@ params = {
     "filter_type": filter_type,
     "weight_decay" : weight_decay,
     "show_plot"    : show_plot,
-    "filter_order" : filter_order
+    "filter_order" : filter_order,
+    "method_order" : method_order,
+    "obj_idx"      : obj_idx
  }
