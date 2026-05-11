@@ -17,9 +17,9 @@ from train_model import training
 
 params["num_IC"] = 4
 params["batch_size"] = (
-    60  ## make batch size a multiple of the number of Initial Conditions
+    64  ## make batch size a multiple of the number of Initial Conditions
 )
-params["num_epochs"] = 500
+params["num_epochs"] = 200
 params["learning_rate"] = 1e-1  # lr= 10  for N = 3,  l3 = 100 for N = 7,9 
 params["momentum_factor"] = 0.9
 params["sigs_max"] = 1
@@ -28,7 +28,14 @@ params["GD_optimizer"] = "Adam"
 params["tt_flag"] = 0
 params["IC_idx"] = 0
 params["device"] = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
+params["ablation_idx"] = 0
 
 NN_model = training(params)
+
+
+filter_type = params["filter_type"]
 N = params["N"]
-torch.save(NN_model, f"trained_models/model_N{N}.pth")
+if filter_type in (1,2):
+    torch.save(NN_model, f"trained_models/model_N{N}_0.pth")
+elif filter_type == 3:
+    torch.save(NN_model, f"trained_models_const/model_N{N}_0.pth")

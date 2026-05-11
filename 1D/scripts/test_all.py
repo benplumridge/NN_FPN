@@ -20,6 +20,7 @@ from test_model import testing
 params["batch_size"] = 1
 params["tt_flag"] = 1
 params["device"] = "cpu"
+params["ablation_idx"] = 0
 # params['IC_idx'] = IC_idx
 
 N_exact = 127

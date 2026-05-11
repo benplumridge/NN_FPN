@@ -7,7 +7,7 @@ from funcs_common import SimpleNN, obj_func, timestepping, compute_cell_average
 from IC import gaussian_testing, heaviside, bump, disc_source, vanishing_cs, disc_cs, reeds
 
 
-def testing(params):
+def testing(params, model_idx):
 
     num_x = params["num_x"]
     num_t = params["num_t"]
@@ -25,27 +25,28 @@ def testing(params):
     filter_type = params["filter_type"]
     show_plot   = params["show_plot"]
 
-    if filter_type in (1,2):
-        model_filename = load_model(N)
-        NN_model = torch.load(model_filename, map_location=torch.device(device), weights_only = False)
-        NN_model.to(device)
-        NN_model.eval()
+
+    model_filename = load_model(N, model_idx, filter_type)
+    NN_model = torch.load(model_filename, map_location=torch.device(device), weights_only = False)
+    NN_model.to(device)
+    NN_model.eval()
+
 
         # for name, param in NN_model.named_parameters():
         #     if 'weight' in name and param.requires_grad:
         #         norm = torch.norm(param).item()
         #         print(f"Layer: {name} | Weight norm: {norm:.4f}")
 
-    elif filter_type == 3:
-        if N == 3:
-            sigf = 27.1199
-        elif N == 7:
-            sigf = 16.1425
-        elif N == 9:
-            sigf = 10.2298
-        else:
-            sigf = 10
-        NN_model = sigf
+    # elif filter_type == 3:
+    #     if N == 3:
+    #         sigf = 27.1199
+    #     elif N == 7:
+    #         sigf = 16.1425
+    #     elif N == 9:
+    #         sigf = 10.2298
+    #     else:
+    #         sigf = 10
+    #     NN_model = sigf
 
     with torch.no_grad():
         if IC_idx == 0:
@@ -104,20 +105,20 @@ def testing(params):
         )[0]
 
         FPN, sigf = timestepping(
-            psi0, 1, NN_model, params, sigs, sigt, N, source, batch_size, device
+            psi0, filter_type, NN_model, params, sigs, sigt, N, source, batch_size, device
         )
 
         error0 = torch.sqrt(
-            obj_func(PN - exact[:, :, 0 : N + 1],dx) / obj_func(exact[:, :, 0 : N + 1],dx)
+            obj_func(PN - exact[:, :, 0 : N + 1]) / obj_func(exact[:, :, 0 : N + 1])
         )
         errorf = torch.sqrt(
-            obj_func(FPN - exact[:, :, 0 : N + 1],dx) / obj_func(exact[:, :, 0 : N + 1],dx)
+            obj_func(FPN - exact[:, :, 0 : N + 1]) / obj_func(exact[:, :, 0 : N + 1])
         )
         flux_err0 = torch.sqrt(
-            obj_func(PN[:, :, 0] - exact[:, :, 0],dx) / obj_func(exact[:, :, 0],dx)
+            obj_func(PN[:, :, 0] - exact[:, :, 0]) / obj_func(exact[:, :, 0])
         )
         flux_errf = torch.sqrt(
-            obj_func(FPN[:, :, 0] - exact[:, :, 0],dx) / obj_func(exact[:, :, 0],dx)
+            obj_func(FPN[:, :, 0] - exact[:, :, 0]) / obj_func(exact[:, :, 0])
         )
 
     total_error_reduction = errorf / error0
@@ -141,11 +142,12 @@ def testing(params):
         flux_error_reduction,
     )
 
-    sigf  = sigf[0, :].detach().numpy()
+
+    sigf = sigf.detach().cpu().numpy()
+    sigf = sigf[0, :]
     exact = exact[0, :, :].detach().numpy()
     PN    = PN[0, :, :].detach().numpy()
     FPN   = FPN[0, :, :].detach().numpy()
-
 
     exact_flux = np.sqrt(2) * exact[:, 0]
     PN_flux    = np.sqrt(2) * PN[:, 0]
@@ -207,14 +209,16 @@ def testing(params):
     # ax.set_xlabel('x')
     # plt.show()
     plt.close()
-    return 0
+    return flux_error_reduction
 
 
-def load_model(N):
+def load_model(N, model_idx, filter_type):
     valid_N = {3, 7, 9}
     if N not in valid_N:
         raise ValueError(f"Invalid value for N: {N}. Expected one of {valid_N}.")
-
-    filename = f"trained_models/model_N{N}.pth"
+    if filter_type in (1,2):
+        filename = f"trained_models/model_N{N}_{model_idx}.pth"
+    elif filter_type == 3:
+        filename = f"trained_models_const/model_N{N}_{model_idx}.pth"   
 
     return filename

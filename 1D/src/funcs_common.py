@@ -54,7 +54,9 @@ def timestepping(
 
     num_x = params["num_x"]
     num_t = params["num_t"]
-
+    method_order = params["method_order"]
+    obj_idx   = params["obj_idx"]
+    
     # CONSTRUCT A vector: does not need updating
     a = torch.zeros(N)
 
@@ -79,6 +81,8 @@ def timestepping(
     y = y_prev
     source_in = source[:, :, None]
 
+    y_out = torch.zeros(batch_size, num_t, num_x, N+1)
+
     if tt_flag == 0:
         sigt_in = sigt[:, None, None]
         sigs_in = sigs[:, None, None]
@@ -86,8 +90,8 @@ def timestepping(
         sigt_in = sigt[:, :, None]
         sigs_in = sigs[:, :, None]
 
-    for k in range(1, num_t + 1):
-        y1_update = PN_update(
+    for k in range(num_t):
+        y1_update, sigf = PN_update(
             params,
             y_prev,
             A,
@@ -99,34 +103,40 @@ def timestepping(
             source_in,
             sigt_in,
             sigs_in,
-        )[0]
+        )
         y1 = y_prev + dt * y1_update
 
         # boundary conditions for Reeds problem: reflecting at x = 0 and vacauum at x = 8
         if IC_idx == 6:
             y1 = reeds_BC(y1, N)
+        if method_order == 1:
+            y = y1
+        elif method_order == 2:
+            y2_update, sigf = PN_update(
+                params,
+                y1,
+                A,
+                absA,
+                N,
+                source,
+                filter_type,
+                NN_model,
+                source_in,
+                sigt_in,
+                sigs_in,
+            )
+            y = y_prev + 0.5 * dt * (y1_update + y2_update)
 
-        y2_update, sigf = PN_update(
-            params,
-            y1,
-            A,
-            absA,
-            N,
-            source,
-            filter_type,
-            NN_model,
-            source_in,
-            sigt_in,
-            sigs_in,
-        )
-        y = y_prev + 0.5 * dt * (y1_update + y2_update)
-
-        # boundary conditions for Reeds problem: reflecting at x = 0 and vacauum at x = 8
-        if IC_idx == 6:
-            y = reeds_BC(y, N)
+            if obj_idx != 2:
+                y_out = y
+            if obj_idx == 2:
+                y_out[:,k,:,:] = y
+            # boundary conditions for Reeds problem: reflecting at x = 0 and vacauum at x = 8
+            if IC_idx == 6:
+                y = reeds_BC(y, N)
         y_prev = y
 
-    return y, sigf
+    return y_out, sigf
 
 def PN_update(
     params,
@@ -146,7 +156,8 @@ def PN_update(
     IC_idx = params["IC_idx"]
     num_x = params["num_x"]
     dx    = params["dx"]
-    
+    method_order = params["method_order"]
+
     filter_order = params["filter_order"]
     filt_input = torch.arange(0, N + 1, 1) / (N + 1)
     filter = -torch.log(filter_func(filt_input, filter_order))
@@ -160,13 +171,13 @@ def PN_update(
         y_expand[:, 0, :] = y_prev[:, num_x - 1, :]
         y_expand[:, num_x + 1, :] = y_prev[:, 0, :]
 
+    if method_order == 2:
+        slope[:, 1 : num_x + 1, :] = minmod(y_expand[:, 2 : num_x + 2, :] - y_expand[:, 1 : num_x + 1, :],
+                                    y_expand[:, 1 : num_x + 1, :] - y_expand[:, 0:num_x, :])
 
-    slope[:, 1 : num_x + 1, :] = minmod(y_expand[:, 2 : num_x + 2, :] - y_expand[:, 1 : num_x + 1, :],
-                                y_expand[:, 1 : num_x + 1, :] - y_expand[:, 0:num_x, :])
-
-    if IC_idx != 6:
-        slope[:,0,:]       = slope[:,num_x,:]
-        slope[:,num_x+1,:] = slope[:,1,:]
+        if IC_idx != 6:
+            slope[:,0,:]       = slope[:,num_x,:]
+            slope[:,num_x+1,:] = slope[:,1,:]
 
 
     yL_plus = y_expand[:, 1 : num_x + 1, :] + 0.5*slope[:,1:num_x+1,:]
@@ -281,6 +292,9 @@ def obj_func(z):
     return torch.mean(z**2)
     # return (dx * z.pow(2).sum(dim=1)).mean()
 
+def obj_func_time(z):
+    dims = tuple(i for i in range(z.ndim) if i != 1)
+    return torch.sum(torch.mean(z**2, dim=dims))
 
 def compute_cell_average(f, batch_size, num_x):
     f_average = torch.zeros(batch_size, num_x)
