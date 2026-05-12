@@ -49,7 +49,7 @@ def filter_coefficients(filter_order, N, num_basis):
         idx += l
     return filter_expand
 
-for N in [3,5,7,9]:
+for N in [9]:
     num_features = 2 * (N + 1) + 2
     num_basis = (N + 1) * (N + 2) // 2
     filter = filter_coefficients(params["filter_order"], N, num_basis)
