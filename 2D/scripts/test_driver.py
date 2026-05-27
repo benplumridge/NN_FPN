@@ -20,4 +20,4 @@ params["batch_size"] = 1
 params["tt_flag"] = 1
 params["device"] = "cpu"
 
-testing(params)
+FPN_error, FPN_error_reduction = testing(params)

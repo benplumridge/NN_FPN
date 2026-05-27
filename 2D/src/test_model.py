@@ -57,7 +57,7 @@ def testing(params):
 
     with torch.no_grad():
         if IC_idx == 0:
-            ic_type = "Linesource"
+            ic_type = "linesource"
             psi0_out, source_out, sigs_out, sigt_out = gaussian_testing(
                 num_x, num_y, x_edges, y_edges
             )
@@ -93,7 +93,7 @@ def testing(params):
             y = params["y"]
             T = params["T"]
         elif IC_idx == 6:
-            ic_type = "Lattice"
+            ic_type = "lattice"
             psi0_out, source_out, sigs_out, sigt_out, params = lattice(params)
             # NOTE: lattice overwrites parameters defined in parameter file
             num_x = params["num_x"]
@@ -121,24 +121,24 @@ def testing(params):
         sigt = compute_cell_average(sigt_edges, num_x, num_y, batch_size)
         source = compute_cell_average(source_edges, num_x, num_y, batch_size)
 
-        # if IC_idx == 0:
-        #     exact_np = np.load("linesource_37.npy")
-        #     exact = torch.zeros(batch_size, num_y, num_x, num_basis_exact)
-        #     exact[0, :, :, :] = torch.from_numpy(exact_np)
+        if IC_idx == 0:
+            exact_np = np.load("exact_solns/linesource_37.npy")
+            exact = torch.zeros(batch_size, num_y, num_x, num_basis_exact)
+            exact[0, :, :, :] = torch.from_numpy(exact_np)
 
-        # elif IC_idx == 6:
-        #     if T == 1.6:
-        #         exact_np = np.load("lattice_37_T16.npy")
-        #     elif T == 3.2:
-        #         exact_np = np.load("lattice_37_T32.npy")
-        #     exact = torch.zeros(batch_size, num_y, num_x, num_basis_exact)
-        #     exact[0, :, :, :] = torch.from_numpy(exact_np)
+        elif IC_idx == 6:
+            if T == 1.6:
+                exact_np = np.load("exact_solns/lattice_37_T16.npy")
+            elif T == 3.2:
+                exact_np = np.load("exact_solns/lattice_37_T32.npy")
+            exact = torch.zeros(batch_size, num_y, num_x, num_basis_exact)
+            exact[0, :, :, :] = torch.from_numpy(exact_np)
 
-        # else:
-        exact = timestepping(
-            psi0, 0, 0, params, sigs, sigt, N_exact, num_basis_exact, source
-        )[0]
-        # np.save("P37",  exact)
+        else:
+            exact = timestepping(
+                psi0, 0, 0, params, sigs, sigt, N_exact, num_basis_exact, source
+            )[0]
+            np.save("P37",  exact)
 
         PN = timestepping(psi0, 0, 0, params, sigs, sigt, N, num_basis, source)[0]
         FPN, sigf = timestepping(
@@ -214,6 +214,10 @@ def testing(params):
     )
     ax_PN.tick_params(axis="y", which="both", left=False, right=False, labelleft=False)
     fig_PN.colorbar(contour_PN, ax=ax_PN, orientation="vertical", shrink=0.8)
+    
+    T_int = int(100*T)
+    filename = f"results/{ic_type}/P{N}_t{T_int}.png"
+    plt.savefig(filename, bbox_inches="tight", dpi=300)
 
     fig_FPN, ax_FPN = plt.subplots(constrained_layout=True)
     contour_FPN = ax_FPN.contourf(y, x, FPN, levels, cmap=cmap)
@@ -223,6 +227,8 @@ def testing(params):
     )
     ax_FPN.tick_params(axis="y", which="both", left=False, right=False, labelleft=False)
     fig_FPN.colorbar(contour_FPN, ax=ax_FPN, orientation="vertical", shrink=0.8)
+    filename = f"results/{ic_type}/FP{N}_t{T_int}.png"
+    plt.savefig(filename, bbox_inches="tight", dpi=300)
 
     fig_exact, ax_exact = plt.subplots(constrained_layout=True)
     plt.rcParams.update({"font.size": 16})
@@ -235,6 +241,9 @@ def testing(params):
         axis="y", which="both", left=False, right=False, labelleft=False
     )
     fig_exact.colorbar(contour_exact, ax=ax_exact, orientation="vertical", shrink=0.8)
+
+    filename = f"results/{ic_type}/P{N_exact}_t{T_int}.png"
+    plt.savefig(filename, bbox_inches="tight", dpi=300)
 
     if show_slices == 1:
         fig_slice0, ax_slice0 = plt.subplots()
@@ -257,6 +266,8 @@ def testing(params):
         labels = [line.get_label() for line in lines]
         ax_slice0.tick_params(axis="x", bottom=True, labelbottom=True)
         #ax_slice0.legend(lines, labels, bbox_to_anchor=(1.08, 1.15), ncol=4, frameon=False)
+        filename = f"results/{ic_type}/P{N}_slice0.png"
+        plt.savefig(filename, bbox_inches="tight", dpi=300)
 
         fig_slice45, ax_slice45 = plt.subplots()
         xl45 = -np.sqrt(2)
@@ -284,6 +295,8 @@ def testing(params):
         labels = [line.get_label() for line in lines]
         ax_slice45.tick_params(axis="x", bottom=True, labelbottom=True)
         #ax_slice45.legend(lines, labels, bbox_to_anchor=(1.08, 1.15), ncol=4, frameon=False)
+        filename = f"results/{ic_type}/P{N}_slice45.png"
+        plt.savefig(filename, bbox_inches="tight", dpi=300)
 
     fig_sig, ax_sig = plt.subplots(constrained_layout=True)
     contour_sig = ax_sig.contourf(y, x, sigf, levels, cmap=cmap_sigf)
@@ -293,10 +306,13 @@ def testing(params):
     )
     ax_sig.tick_params(axis="y", which="both", left=False, right=False, labelleft=False)
     fig_sig.colorbar(contour_sig, ax=ax_sig, orientation="vertical", shrink=0.8)
-
+    filename = f"results/{ic_type}/sigf_FP{N}.png"
+    plt.savefig(filename, bbox_inches="tight", dpi=300)
+    
     if show_plots == 1:
         plt.show()
 
+    return flux_errf, flux_error_reduction
 
 def load_model(N):
     valid_N = {3, 5, 7, 9}

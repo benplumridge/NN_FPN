@@ -8,6 +8,8 @@ from params_common import params
 from train_model import training
 
 
+biases = [31.75, 27.27, 16.52, 13.62]
+
 params["num_IC"] = 5
 params["batch_size"] = (
     5  ## make batch size a multiple of the number of Initial Conditions
@@ -49,7 +51,15 @@ def filter_coefficients(filter_order, N, num_basis):
         idx += l
     return filter_expand
 
-for N in [9]:
+for N in [3,5,7,9]:
+    if N == 3:
+        params['bias_int'] = biases[0]
+    elif N == 5:
+        params['bias_int'] = biases[1]
+    elif N == 7:
+        params['bias_int'] = biases[2]
+    elif N == 9:
+        params['bias_int'] = biases[3]
     num_features = 2 * (N + 1) + 2
     num_basis = (N + 1) * (N + 2) // 2
     filter = filter_coefficients(params["filter_order"], N, num_basis)

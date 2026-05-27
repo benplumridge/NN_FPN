@@ -2,24 +2,7 @@ import torch
 import torch.optim as optim
 import numpy as np
 
-
-def filter_func(z, p):
-    return torch.exp(-(z**p))
-
-
-def filter_coefficients(filter_order, N, num_basis):
-    filter = torch.zeros(N + 1)
-    filter[1 : N + 1] = -torch.log(
-        filter_func(torch.arange(1, N + 1) / (N + 1), filter_order)
-    )
-
-    filter_expand = torch.zeros(num_basis)
-    idx = 0
-    for l in range(1, N + 2):
-        filter_expand[idx : idx + l] = filter[l - 1]
-        idx += l
-    return filter_expand
-
+bias_init = 10
 
 N = 3
 N_exact = 37
@@ -28,7 +11,7 @@ N_exact = 37
 num_x = 100
 T = 0.5
 
-obj_idx = 2
+obj_idx = 0
 
 filter_order = 4
 
@@ -42,7 +25,7 @@ filter_type = 0
 sigf_const =  15
 
 show_sym_errors = 0
-show_plots = 1
+show_plots = 0
 show_slices = 1
 
 xl = -1
@@ -79,8 +62,6 @@ num_y_fine = num_y * num_y_fine_factor + 1
 x_fine = torch.linspace(xl, xr, num_x_fine, dtype=torch.float32)
 y_fine = torch.linspace(yl, yr, num_y_fine, dtype=torch.float32)
 
-filter = filter_coefficients(filter_order, N, num_basis)
-
 plot_idx = int(np.round(num_x // 2))
 
 params = {
@@ -110,7 +91,6 @@ params = {
     "num_features": num_features,
     "num_hidden": num_hidden,
     "num_basis": num_basis,
-    "filter": filter,
     "filter_order": filter_order,
     "filter_type": filter_type,
      "sigf_const" : sigf_const,
@@ -119,5 +99,6 @@ params = {
     "show_plots": show_plots,
     "show_sym_errors": show_sym_errors,
     "show_slices": show_slices,
-    "obj_idx"    : obj_idx
+    "obj_idx"    : obj_idx,
+    "bias_init"  : bias_init
 }

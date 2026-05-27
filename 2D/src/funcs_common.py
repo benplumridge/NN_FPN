@@ -47,6 +47,22 @@ def obj_func_time(z):
 def minmod(a, b):
     return 0.5 * (torch.sign(a) + torch.sign(b)) * torch.min(torch.abs(a), torch.abs(b))
 
+def filter_func(z, p):
+    return torch.exp(-(z**p))
+
+def filter_coefficients(filter_order, N, num_basis):
+    filter = torch.zeros(N + 1)
+    filter[1 : N + 1] = -torch.log(
+        filter_func(torch.arange(1, N + 1) / (N + 1), filter_order)
+    )
+
+    filter_expand = torch.zeros(num_basis)
+    idx = 0
+    for l in range(1, N + 2):
+        filter_expand[idx : idx + l] = filter[l - 1]
+        idx += l
+    return filter_expand
+
 
 def compute_PN_matrices(N):
     n_sys = (N + 1) * (N + 2) // 2
@@ -317,12 +333,12 @@ def PN_update(
     num_y = params["num_y"]
     num_features = params["num_features"]
     batch_size = params["batch_size"]
-    filter = params["filter"]
     tt_flag = params["tt_flag"]
     IC_idx = params["IC_idx"]
     device = params["device"]
     filter_type = params["filter_type"]
-    filter = filter.to(device)
+    filter_order = params["filter_order"]
+    #filter = filter.to(device)
 
     fluxes, A_dxpsi, A_dypsi = upwind_flux(N, num_basis, psi_prev, params)
 
@@ -351,7 +367,7 @@ def PN_update(
     psi_update[:, :, :, 0] = psi_update[:, :, :, 0] + scattering + source
 
     if filt_switch == 1:
-        sigf_psi = sigf[:, :, :, None] * psi_prev * filter[0:num_basis]
+        sigf_psi = sigf[:, :, :, None]*psi_prev*filter_coefficients(filter_order, N, num_basis)
         psi_update = psi_update - sigf_psi
 
     if IC_idx != 5:

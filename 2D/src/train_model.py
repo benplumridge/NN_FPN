@@ -32,6 +32,7 @@ def training(params):
     num_IC = params["num_IC"]
     device = params["device"]
     obj_idx = params["obj_idx"]
+    bias_init = params["bias_init"]
 
     NN_model = SimpleNN(num_features, num_hidden)
 
@@ -43,6 +44,10 @@ def training(params):
         )
     elif GD_optimizer == "Adam":
         opt = optim.Adam(NN_model.parameters(), lr=learning_rate)
+
+    with torch.no_grad():
+        NN_model.output.bias.fill_(bias_init)
+
     NN_model = NN_model.to(device)
 
     psi0_nodes = torch.zeros([num_IC, num_y + 1, num_x + 1])
