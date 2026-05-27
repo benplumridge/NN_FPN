@@ -300,6 +300,7 @@ def timestepping(psi0, filt_switch, NN_model, params, sigs, sigt, N, num_basis, 
     batch_size = params["batch_size"]
     device = params["device"]
     obj_idx = params["obj_idx"]
+    filter_order = params["filter_order"]
 
     psi_prev = torch.zeros([batch_size, num_y, num_x, num_basis], device=device)
     psi_prev[:, :, :, 0] = psi0
@@ -307,13 +308,15 @@ def timestepping(psi0, filt_switch, NN_model, params, sigs, sigt, N, num_basis, 
     if obj_idx == 2:
         psi_out = torch.zeros([batch_size, num_t, num_y, num_x, num_basis])
 
+    filter_coeffs =filter_coefficients(filter_order, N, num_basis)
+    filter_coeffs = filter_coeffs.to(device)
     for k in range(num_t):
         psi1_update = PN_update(
-            psi_prev, N, params, num_basis, sigt, sigs, filt_switch, source, NN_model
+            psi_prev, N, params, num_basis, sigt, sigs, filt_switch, source, NN_model, filter_coeffs
         )[0]
         psi1 = psi_prev + dt * psi1_update
         psi2_update, sigf = PN_update(
-            psi1, N, params, num_basis, sigt, sigs, filt_switch, source, NN_model
+            psi1, N, params, num_basis, sigt, sigs, filt_switch, source, NN_model, filter_coeffs
         )
         psi = psi_prev + 0.5 * dt * (psi1_update + psi2_update)
         psi_prev = psi
@@ -326,7 +329,7 @@ def timestepping(psi0, filt_switch, NN_model, params, sigs, sigt, N, num_basis, 
 
 
 def PN_update(
-    psi_prev, N, params, num_basis, sigt, sigs, filt_switch, source, NN_model
+    psi_prev, N, params, num_basis, sigt, sigs, filt_switch, source, NN_model, filter_coeffs
 ):
 
     num_x = params["num_x"]
@@ -337,8 +340,8 @@ def PN_update(
     IC_idx = params["IC_idx"]
     device = params["device"]
     filter_type = params["filter_type"]
-    filter_order = params["filter_order"]
-    #filter = filter.to(device)
+
+
 
     fluxes, A_dxpsi, A_dypsi = upwind_flux(N, num_basis, psi_prev, params)
 
@@ -367,7 +370,7 @@ def PN_update(
     psi_update[:, :, :, 0] = psi_update[:, :, :, 0] + scattering + source
 
     if filt_switch == 1:
-        sigf_psi = sigf[:, :, :, None]*psi_prev*filter_coefficients(filter_order, N, num_basis)
+        sigf_psi = sigf[:, :, :, None]*psi_prev*filter_coeffs
         psi_update = psi_update - sigf_psi
 
     if IC_idx != 5:

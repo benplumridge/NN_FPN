@@ -33,24 +33,6 @@ if GD_opt_flag == 0:
 elif GD_opt_flag == 1:
     params["GD_optimizer"] = "Adam"
 
-
-def filter_func(z, p):
-    return torch.exp(-(z**p))
-
-
-def filter_coefficients(filter_order, N, num_basis):
-    filter = torch.zeros(N + 1)
-    filter[1 : N + 1] = -torch.log(
-        filter_func(torch.arange(1, N + 1) / (N + 1), filter_order)
-    )
-
-    filter_expand = torch.zeros(num_basis)
-    idx = 0
-    for l in range(1, N + 2):
-        filter_expand[idx : idx + l] = filter[l - 1]
-        idx += l
-    return filter_expand
-
 for N in [3,5,7,9]:
     if N == 3:
         params['bias_int'] = biases[0]
@@ -62,11 +44,9 @@ for N in [3,5,7,9]:
         params['bias_int'] = biases[3]
     num_features = 2 * (N + 1) + 2
     num_basis = (N + 1) * (N + 2) // 2
-    filter = filter_coefficients(params["filter_order"], N, num_basis)
     params['num_features'] = num_features
     params['num_basis'] = num_basis
     params["N"] = N
-    params["filter"] = filter
     NN_model = training(params)
     filename = f"trained_models/model_N{N}.pth"
     torch.save(NN_model, filename)
