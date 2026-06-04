@@ -1,7 +1,7 @@
 import torch.optim as optim
 import torch
 import numpy as np
-from funcs_common import SimpleNN, obj_func, obj_func_time, timestepping, compute_cell_average
+from funcs_common import SimpleNN, SimpleNN_const, obj_func, obj_func_time, timestepping, compute_cell_average
 from IC import gaussian_training, step, disc_source, bump, hat
 from training_sources import (
     frame_source,
@@ -9,7 +9,7 @@ from training_sources import (
     gaussian_source,
     pulse_source,
 )
-
+ 
 
 def training(params):
 
@@ -34,7 +34,10 @@ def training(params):
     obj_idx = params["obj_idx"]
     bias_init = params["bias_init"]
 
-    NN_model = SimpleNN(num_features, num_hidden)
+    if filter_type in (1,2):
+        NN_model = SimpleNN(num_features, num_hidden)
+    elif filter_type == 3:
+        NN_model = SimpleNN_const()
 
     # NN_model = torch.load("trained_models/model_N5.pth")
 
@@ -109,7 +112,7 @@ def training(params):
         )[0]
         FPN = FPN.to("cpu")
         exact = exact.to("cpu")
-        if obj_idx in {0,1}:
+        if obj_idx == 0 :
             loss = obj_func(FPN[:, :, :, 0] - exact[:, :, :, 0])
         elif obj_idx == 2:
             loss = obj_func_time(FPN[:, :, :, :, 0] - exact[:, :, :, :, 0])

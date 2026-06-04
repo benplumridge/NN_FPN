@@ -2,6 +2,14 @@ import torch
 import torch.nn as nn
 import numpy as np
 
+class SimpleNN_const(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.const = nn.Parameter(0.01 * torch.rand(()))
+
+    def forward(self):
+        return self.const
+
 
 class SimpleNN(nn.Module):
     def __init__(self, num_features, num_hidden):
@@ -362,7 +370,10 @@ def PN_update(
                 N, sigt_psi, A_dxpsi, A_dypsi, scattering, source, params
             )
             sigf = NN_model(inputs).squeeze(-1)
-        if filter_type == 1 or filter_type == 2:
+        if filter_type == 1:
+            sigf0 = NN_model()
+            sigf = sigf0*torch.ones(batch_size, num_y, num_x)
+        if filter_type == 2:
             sigf0 = NN_model
             sigf = sigf0 * torch.ones(batch_size, num_y, num_x)
 

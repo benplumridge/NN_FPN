@@ -2,8 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import torch
-from IC import gaussian_testing, step, disc_source, bump, hat, holhraum, lattice
-from funcs_common import obj_func, timestepping, compute_cell_average, rotation_test
+from IC import gaussian_testing, gaussian_training, step, disc_source, bump, hat, holhraum, lattice
+from funcs_common import obj_func, obj_func_time, timestepping, compute_cell_average, rotation_test
 
 # from training_sources import pulse_source, two_rect_source, frame_source
 
@@ -32,6 +32,8 @@ def testing(params):
     show_plots = params["show_plots"]
     show_sym_errors = params["show_sym_errors"]
     show_slices = params["show_slices"]
+    obj_idx     = params["obj_idx"]
+
     if filter_type == 0:
         model_filename = load_model(N)
         NN_model = torch.load(model_filename, map_location=torch.device(device), weights_only= False)
@@ -82,7 +84,7 @@ def testing(params):
                 num_x, num_y, x_edges, y_edges
             )
         elif IC_idx == 5:
-            ic_type = "Holhraum"
+            ic_type = "Hohlraum"
             psi0_out, source_out, sigs_out, sigt_out, params = holhraum(params)
             # NOTE: holhraum overwrites parameters defined in parameter file
             num_x = params["num_x"]
@@ -103,7 +105,11 @@ def testing(params):
             xr = params["xr"]
             y = params["y"]
             T = params["T"]
-
+        elif IC_idx == 7:
+            ic_type = "Gaussian"
+            psi0_out, source_out, sigs_out, sigt_out = gaussian_training(
+                num_x, num_y, x_edges, y_edges
+            )
         psi0_edges = torch.zeros(batch_size, num_y + 1, num_x + 1, dtype=torch.float32)
         sigs_edges = torch.zeros(batch_size, num_y + 1, num_x + 1, dtype=torch.float32)
         sigt_edges = torch.zeros(batch_size, num_y + 1, num_x + 1, dtype=torch.float32)
@@ -126,6 +132,14 @@ def testing(params):
             exact = torch.zeros(batch_size, num_y, num_x, num_basis_exact)
             exact[0, :, :, :] = torch.from_numpy(exact_np)
 
+        elif IC_idx == 5:
+            if T == 1.5:
+                exact_np = np.load("exact_solns/hohlraum_37_T15.npy") 
+            elif T == 3.0:
+                exact_np = np.load("exact_solns/hohlraum_37_T30.npy") 
+            exact = torch.zeros(batch_size, num_y, num_x, num_basis_exact)
+            exact[0, :, :, :] = torch.from_numpy(exact_np)  
+
         elif IC_idx == 6:
             if T == 1.6:
                 exact_np = np.load("exact_solns/lattice_37_T16.npy")
@@ -145,20 +159,37 @@ def testing(params):
             psi0, 1, NN_model, params, sigs, sigt, N, num_basis, source
         )
 
-        error0 = torch.sqrt(
-            obj_func(PN - exact[:, :, :, :num_basis])
-            / obj_func(exact[:, :, :, :num_basis])
-        )
-        errorf = torch.sqrt(
-            obj_func(FPN - exact[:, :, :, :num_basis])
-            / obj_func(exact[:, :, :, :num_basis])
-        )
-        flux_err0 = torch.sqrt(
-            obj_func(PN[:, :, :, 0] - exact[:, :, :, 0]) / obj_func(exact[:, :, :, 0])
-        )
-        flux_errf = torch.sqrt(
-            obj_func(FPN[:, :, :, 0] - exact[:, :, :, 0]) / obj_func(exact[:, :, :, 0])
-        )
+        if obj_idx == 0:
+            error0 = torch.sqrt(
+                obj_func(PN - exact[:, :, :, :num_basis])
+                / obj_func(exact[:, :, :, :num_basis])
+            )
+            errorf = torch.sqrt(
+                obj_func(FPN - exact[:, :, :, :num_basis])
+                / obj_func(exact[:, :, :, :num_basis])
+            )
+            flux_err0 = torch.sqrt(
+                obj_func(PN[:, :, :, 0] - exact[:, :, :, 0]) / obj_func(exact[:, :, :, 0])
+            )
+            flux_errf = torch.sqrt(
+                obj_func(FPN[:, :, :, 0] - exact[:, :, :, 0]) / obj_func(exact[:, :, :, 0])
+            )
+        elif obj_idx == 2:
+            error0 = torch.sqrt(
+                obj_func_time(PN - exact[:, :, :, :, :num_basis])
+                / obj_func(exact[:, :, :, :, :num_basis])
+            )
+            errorf = torch.sqrt(
+                obj_func_time(FPN - exact[:, :, :, :, :num_basis])
+                / obj_func(exact[:, :, :, :, :num_basis])
+            )
+            flux_err0 = torch.sqrt(
+                obj_func(PN[:, :, :, :, 0] - exact[:, :, :, :, 0]) / obj_func(exact[:, :, :, :, 0])
+            )
+            flux_errf = torch.sqrt(
+                obj_func(FPN[:, :, :, :, 0] - exact[:, :, :, :, 0]) / obj_func(exact[:, :, :, :, 0])
+            )
+
 
     total_error_reduction = errorf / error0
     flux_error_reduction = flux_errf / flux_err0
@@ -185,7 +216,7 @@ def testing(params):
     PN = PN[0, :, :, 0].detach().numpy()
     FPN = FPN[0, :, :, 0].detach().numpy()
 
-    if IC_idx == 6:
+    if IC_idx in {5,6}:
         floor_value = 1e-7
         exact = np.where(exact < floor_value, floor_value, exact)
         PN = np.where(PN < floor_value, floor_value, PN)

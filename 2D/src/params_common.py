@@ -4,20 +4,24 @@ import numpy as np
 
 bias_init = 10
 
-N = 3
+N = 7
 N_exact = 37
 
 # note num_x and num_y refer to cell centers:  so there will be num_x + 1 nodes in x
 num_x = 100
-T = 0.5
+T = 0.75
 
-obj_idx = 0
+#objective functional flag
+# 0 - final time scalar flux
+# 1 - final time all moments
+# 2 - over time scalar flux
+obj_idx = 2
 
 filter_order = 4
 
 # filter type
 # 0 - Neural network
-# 1 - Constant trainedd
+# 1 - Constant trained
 # 2 - Constant input
 filter_type = 0
 
