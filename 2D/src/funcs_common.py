@@ -242,7 +242,7 @@ def preprocess_features(N, psi, dxpsi, dypsi, scattering, source, params):
 
     for ell in range(N + 1):
 
-        num_m = ell + 1
+        num_m   = ell + 1
         ell_psi = psi[:, :, :, index : index + num_m]
 
         norm_l_psi = torch.linalg.norm(ell_psi, ord=2, dim=-1)
