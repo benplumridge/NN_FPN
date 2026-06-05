@@ -21,7 +21,14 @@ params["ablation_idx"] = 0
 
 Ns = [3, 7, 9]
 
-with open("error_reduction_table_reeds.txt", "w") as f:
+filter_type = params["filter_type"]
+if filter_type == 1:
+    file_name = "error_reduction_table_reeds.txt"
+elif filter_type == 3:
+    file_name = "error_reduction_table_reeds_const.txt"
+
+
+with open(file_name, "w") as f:
     f.write(f"IC_idx = {IC_idx}\n")
     f.write("t\t" + "\t".join([f"N={N}" for N in Ns]) + "\n")  
 

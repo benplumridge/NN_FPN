@@ -7,8 +7,8 @@ N = 3
 N_exact = 127
 num_x = 128
 T     = 0.5
-num_x = 128*4
-T = 5
+# num_x = 128*4
+# T = 5
 
 # show plot = 1 -> plot
 show_plot = 0
@@ -20,7 +20,7 @@ method_order = 2
 # 1 -  abs on every input
 # 2 - Alternating abs on moments 
 # 3 - Constant
-filter_type = 1
+filter_type = 3
 
 # objective functional index
 # 0 - scalar flux at final time

@@ -1,24 +1,6 @@
 import torch
 import numpy as np
 import torch.nn as nn
-
-
-# class SimpleNN_const(nn.Module):
-
-#     def __init__(self, num_features, num_hidden, N):
-#         super(SimpleNN_const, self).__init__()
-
-#         self.const = nn.Parameter(torch.ones(1, 1), requires_grad=True)
-
-#     def forward(self, x):
-#         original_shape = x.shape
-
-#         output_shape = [original_shape[0], original_shape[1], 1]
-#         const_broadcasted = self.const.expand(
-#             output_shape[0], output_shape[1], output_shape[2]
-#         ).contiguous()
-#         return const_broadcasted
-
     
 class SimpleNN_const(nn.Module):
     def __init__(self):

@@ -25,12 +25,18 @@ params["tt_flag"] = 1
 params["device"] = "cpu"
 params["ablation_idx"] = 0 
 
-
 IC_indices = [0, 1, 2]
 Ns = [3, 7, 9]
 #Ns = [3]
 
-with open("error_reduction_table.txt", "w") as f:
+filter_type = params["filter_type"]
+if filter_type == 1:
+    file_name = "error_reduction_table.txt"
+elif filter_type == 3:
+    file_name = "error_reduction_table_const.txt"
+
+
+with open(file_name, "w") as f:
 
     for IC_idx in IC_indices:
         params["IC_idx"] = IC_idx

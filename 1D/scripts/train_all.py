@@ -15,7 +15,7 @@ from params_common import params
 from train_model import training
 
 
-num_trains = 4
+num_trains = 5
 params["num_IC"] = 4
 params["batch_size"] = (
     64  ## make batch size a multiple of the number of Initial Conditions
@@ -45,6 +45,6 @@ for j in range(num_trains):
             params['num_features'] = 2 * N + 4
         NN_model = training(params)  
         if filter_type in (1,2):
-            torch.save(NN_model, f"trained_models/model_N{N}_{j}.pth")
+            torch.save(NN_model, f"trained_models/model_N{N}_{j+5}.pth")
         if filter_type == 3:
-            torch.save(NN_model, f"trained_models_const/model_N{N}_{j}.pth")
+            torch.save(NN_model, f"trained_models_const/model_N{N}_{j+5}.pth")
