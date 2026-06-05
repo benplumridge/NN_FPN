@@ -25,10 +25,12 @@ python3 scripts/train_all.py
 ** Test all problems **
 
 cd 1D
-python3 scripts/test_all.py <N>
+python3 scripts/test_all.py
 
 
 ## 2D Experiments
+
+** Train model for each N in [3,5,7,9] **
 
 cd 2D
 python3 scripts/train_all.py
