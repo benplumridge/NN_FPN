@@ -2,6 +2,14 @@ import torch
 import torch.nn as nn
 import numpy as np
 
+class SimpleNN_const(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.const = nn.Parameter(0.01 * torch.rand(()))
+
+    def forward(self):
+        return self.const
+
 
 class SimpleNN(nn.Module):
     def __init__(self, num_features, num_hidden):
@@ -46,6 +54,22 @@ def obj_func_time(z):
 
 def minmod(a, b):
     return 0.5 * (torch.sign(a) + torch.sign(b)) * torch.min(torch.abs(a), torch.abs(b))
+
+def filter_func(z, p):
+    return torch.exp(-(z**p))
+
+def filter_coefficients(filter_order, N, num_basis):
+    filter = torch.zeros(N + 1)
+    filter[1 : N + 1] = -torch.log(
+        filter_func(torch.arange(1, N + 1) / (N + 1), filter_order)
+    )
+
+    filter_expand = torch.zeros(num_basis)
+    idx = 0
+    for l in range(1, N + 2):
+        filter_expand[idx : idx + l] = filter[l - 1]
+        idx += l
+    return filter_expand
 
 
 def compute_PN_matrices(N):
@@ -242,7 +266,7 @@ def preprocess_features(N, psi, dxpsi, dypsi, scattering, source, params):
 
     for ell in range(N + 1):
 
-        num_m   = ell + 1
+        num_m = ell + 1
         ell_psi = psi[:, :, :, index : index + num_m]
 
         norm_l_psi = torch.linalg.norm(ell_psi, ord=2, dim=-1)
@@ -284,6 +308,7 @@ def timestepping(psi0, filt_switch, NN_model, params, sigs, sigt, N, num_basis, 
     batch_size = params["batch_size"]
     device = params["device"]
     obj_idx = params["obj_idx"]
+    filter_order = params["filter_order"]
 
     psi_prev = torch.zeros([batch_size, num_y, num_x, num_basis], device=device)
     psi_prev[:, :, :, 0] = psi0
@@ -291,13 +316,15 @@ def timestepping(psi0, filt_switch, NN_model, params, sigs, sigt, N, num_basis, 
     if obj_idx == 2:
         psi_out = torch.zeros([batch_size, num_t, num_y, num_x, num_basis])
 
+    filter_coeffs =filter_coefficients(filter_order, N, num_basis)
+    filter_coeffs = filter_coeffs.to(device)
     for k in range(num_t):
         psi1_update = PN_update(
-            psi_prev, N, params, num_basis, sigt, sigs, filt_switch, source, NN_model
+            psi_prev, N, params, num_basis, sigt, sigs, filt_switch, source, NN_model, filter_coeffs
         )[0]
         psi1 = psi_prev + dt * psi1_update
         psi2_update, sigf = PN_update(
-            psi1, N, params, num_basis, sigt, sigs, filt_switch, source, NN_model
+            psi1, N, params, num_basis, sigt, sigs, filt_switch, source, NN_model, filter_coeffs
         )
         psi = psi_prev + 0.5 * dt * (psi1_update + psi2_update)
         psi_prev = psi
@@ -310,19 +337,19 @@ def timestepping(psi0, filt_switch, NN_model, params, sigs, sigt, N, num_basis, 
 
 
 def PN_update(
-    psi_prev, N, params, num_basis, sigt, sigs, filt_switch, source, NN_model
+    psi_prev, N, params, num_basis, sigt, sigs, filt_switch, source, NN_model, filter_coeffs
 ):
 
     num_x = params["num_x"]
     num_y = params["num_y"]
     num_features = params["num_features"]
     batch_size = params["batch_size"]
-    filter = params["filter"]
     tt_flag = params["tt_flag"]
     IC_idx = params["IC_idx"]
     device = params["device"]
     filter_type = params["filter_type"]
-    filter = filter.to(device)
+
+
 
     fluxes, A_dxpsi, A_dypsi = upwind_flux(N, num_basis, psi_prev, params)
 
@@ -343,7 +370,10 @@ def PN_update(
                 N, sigt_psi, A_dxpsi, A_dypsi, scattering, source, params
             )
             sigf = NN_model(inputs).squeeze(-1)
-        if filter_type == 1 or filter_type == 2:
+        if filter_type == 1:
+            sigf0 = NN_model()
+            sigf = sigf0*torch.ones(batch_size, num_y, num_x, device = sigf0.device)
+        if filter_type == 2:
             sigf0 = NN_model
             sigf = sigf0 * torch.ones(batch_size, num_y, num_x)
 
@@ -351,7 +381,7 @@ def PN_update(
     psi_update[:, :, :, 0] = psi_update[:, :, :, 0] + scattering + source
 
     if filt_switch == 1:
-        sigf_psi = sigf[:, :, :, None] * psi_prev * filter[0:num_basis]
+        sigf_psi = sigf[:, :, :, None]*psi_prev*filter_coeffs
         psi_update = psi_update - sigf_psi
 
     if IC_idx != 5:

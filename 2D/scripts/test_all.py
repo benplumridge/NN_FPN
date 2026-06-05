@@ -3,7 +3,7 @@ import os
 import torch
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
-from params_common import params, filter_coefficients
+from params_common import params
 from test_model import testing
 
 
@@ -70,12 +70,9 @@ for T in T_gauss:
         num_hidden = num_features // 2
         num_basis = (N + 1) * (N + 2) // 2
 
-        filter = filter_coefficients(params["filter_order"], N, num_basis)
-
         params["num_basis"] = num_basis
         params["num_features"] = num_features
         params["num_hidden"] = num_hidden
-        params["filter"] = filter
         params["N"] = N
         params["T"] = T
 
@@ -127,14 +124,6 @@ for T in T_latt:
         params["num_basis"] = num_basis
         params["num_features"] = num_features
         params["num_hidden"] = num_hidden
-
-        filter = filter_coefficients(
-            params["filter_order"],
-            N,
-            num_basis,
-        )
-
-        params["filter"] = filter
         params["N"] = N
 
         dt = dx / 2

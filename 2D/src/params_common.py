@@ -2,40 +2,27 @@ import torch
 import torch.optim as optim
 import numpy as np
 
+bias_init = 10
 
-def filter_func(z, p):
-    return torch.exp(-(z**p))
-
-
-def filter_coefficients(filter_order, N, num_basis):
-    filter = torch.zeros(N + 1)
-    filter[1 : N + 1] = -torch.log(
-        filter_func(torch.arange(1, N + 1) / (N + 1), filter_order)
-    )
-
-    filter_expand = torch.zeros(num_basis)
-    idx = 0
-    for l in range(1, N + 2):
-        filter_expand[idx : idx + l] = filter[l - 1]
-        idx += l
-    return filter_expand
-
-
-N = 9
+N = 3
 N_exact = 37
 
 # note num_x and num_y refer to cell centers:  so there will be num_x + 1 nodes in x
 num_x = 100
-T = 1.5
+T = 0.5
 
-obj_idx = 0
+#objective functional flag
+# 0 - final time scalar flux
+# 1 - final time all moments
+# 2 - over time scalar flux
+obj_idx = 2
 
 filter_order = 4
 
 # filter type
 # 0 - Neural network
-# 1 - Constant (trained)
-# 2 - User selected constant (set sigf_const below)
+# 1 - Constant trained
+# 2 - Constant input
 filter_type = 1
 
 #constant filter strength for filter_type = 2
@@ -79,8 +66,6 @@ num_y_fine = num_y * num_y_fine_factor + 1
 x_fine = torch.linspace(xl, xr, num_x_fine, dtype=torch.float32)
 y_fine = torch.linspace(yl, yr, num_y_fine, dtype=torch.float32)
 
-filter = filter_coefficients(filter_order, N, num_basis)
-
 plot_idx = int(np.round(num_x // 2))
 
 params = {
@@ -110,7 +95,6 @@ params = {
     "num_features": num_features,
     "num_hidden": num_hidden,
     "num_basis": num_basis,
-    "filter": filter,
     "filter_order": filter_order,
     "filter_type": filter_type,
      "sigf_const" : sigf_const,
@@ -119,5 +103,6 @@ params = {
     "show_plots": show_plots,
     "show_sym_errors": show_sym_errors,
     "show_slices": show_slices,
-    "obj_idx"    : obj_idx
+    "obj_idx"    : obj_idx,
+    "bias_init"  : bias_init
 }
