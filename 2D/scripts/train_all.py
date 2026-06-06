@@ -23,6 +23,7 @@ params["tt_flag"] = 0
 params["IC_idx"] = 0
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 params["device"] = device
+filter_type = params["filter_type"]
 
 # Optimizer flag
 # 0  - SGD
