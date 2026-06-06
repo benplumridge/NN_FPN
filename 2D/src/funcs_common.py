@@ -10,7 +10,6 @@ class SimpleNN_const(nn.Module):
     def forward(self):
         return self.const
 
-
 class SimpleNN(nn.Module):
     def __init__(self, num_features, num_hidden):
         super(SimpleNN, self).__init__()
@@ -19,7 +18,7 @@ class SimpleNN(nn.Module):
         self.hidden3 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
         self.hidden4 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
 
-        self.bn1 = nn.LayerNorm(num_features)
+        #self.bn1 = nn.LayerNorm(num_features)
         self.bn2 = nn.LayerNorm(num_hidden)
         self.bn3 = nn.LayerNorm(num_hidden)
         self.bn4 = nn.LayerNorm(num_hidden)

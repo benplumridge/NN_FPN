@@ -31,15 +31,17 @@ def training(params):
     num_IC = params["num_IC"]
     device = params["device"]
     obj_idx = params["obj_idx"]
-    bias_init = params["bias_init"]
+    init_bias = params["init_bias"]
     filter_type = params["filter_type"]
 
     if filter_type == 0:
         NN_model = SimpleNN(num_features, num_hidden)
+        with torch.no_grad():
+            NN_model.output.bias.fill_(init_bias)
     elif filter_type == 1:
         NN_model = SimpleNN_const()
-
-    # NN_model = torch.load("trained_models/model_N5.pth")
+        with torch.no_grad():
+            NN_model.const.fill_(init_bias)
 
     if GD_optimizer == "SGD":
         opt = optim.SGD(
@@ -48,8 +50,7 @@ def training(params):
     elif GD_optimizer == "Adam":
         opt = optim.Adam(NN_model.parameters(), lr=learning_rate)
 
-    with torch.no_grad():
-        NN_model.output.bias.fill_(bias_init)
+
 
     NN_model = NN_model.to(device)
 
