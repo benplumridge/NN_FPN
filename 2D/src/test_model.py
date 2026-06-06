@@ -5,9 +5,6 @@ import torch
 from IC import gaussian_testing, gaussian_training, step, disc_source, bump, hat, holhraum, lattice
 from funcs_common import obj_func, obj_func_time, timestepping, compute_cell_average, rotation_test
 
-# from training_sources import pulse_source, two_rect_source, frame_source
-
-
 def testing(params):
 
     num_x = params["num_x"]
@@ -34,24 +31,11 @@ def testing(params):
     show_slices = params["show_slices"]
     obj_idx     = params["obj_idx"]
 
-    if filter_type == 0:
-        model_filename = load_model(N)
+    if filter_type in {0,1}:
+        model_filename = load_model(N, filter_type)
         NN_model = torch.load(model_filename, map_location=torch.device(device), weights_only= False)
         NN_model.to(device)
         NN_model.eval()
-
-    elif filter_type == 1:
-        if N == 3:
-            sigf = 31.75
-        elif N == 5:
-            sigf = 27.27
-        elif N == 7:
-            sigf = 16.52
-        elif N == 9:
-            sigf = 13.62
-        else:
-            sigf = 10
-        NN_model = sigf
 
     elif filter_type == 2:
         sigf = sigf_const
@@ -174,20 +158,20 @@ def testing(params):
             flux_errf = torch.sqrt(
                 obj_func(FPN[:, :, :, 0] - exact[:, :, :, 0]) / obj_func(exact[:, :, :, 0])
             )
-        elif obj_idx == 2:
+        elif obj_idx == 1:
             error0 = torch.sqrt(
                 obj_func_time(PN - exact[:, :, :, :, :num_basis])
-                / obj_func(exact[:, :, :, :, :num_basis])
+                / obj_func_time(exact[:, :, :, :, :num_basis])
             )
             errorf = torch.sqrt(
                 obj_func_time(FPN - exact[:, :, :, :, :num_basis])
-                / obj_func(exact[:, :, :, :, :num_basis])
+                / obj_func_time(exact[:, :, :, :, :num_basis])
             )
             flux_err0 = torch.sqrt(
-                obj_func(PN[:, :, :, :, 0] - exact[:, :, :, :, 0]) / obj_func(exact[:, :, :, :, 0])
+                obj_func_time(PN[:, :, :, :, 0] - exact[:, :, :, :, 0]) / obj_func_time(exact[:, :, :, :, 0])
             )
             flux_errf = torch.sqrt(
-                obj_func(FPN[:, :, :, :, 0] - exact[:, :, :, :, 0]) / obj_func(exact[:, :, :, :, 0])
+                obj_func_time(FPN[:, :, :, :, 0] - exact[:, :, :, :, 0]) / obj_func_time(exact[:, :, :, :, 0])
             )
 
 
@@ -345,11 +329,13 @@ def testing(params):
 
     return flux_errf, flux_error_reduction
 
-def load_model(N):
+def load_model(N, filter_type):
     valid_N = {3, 5, 7, 9}
     if N not in valid_N:
         raise ValueError(f"Invalid value for N: {N}. Expected one of {valid_N}.")
-
-    filename = f"trained_models/model_N{N}.pth"
+    if filter_type == 0:
+        filename = f"trained_models/model_N{N}.pth"
+    elif filter_type in {1,2}:
+        filename = f"trained_models_const/model_N{N}.pth"
 
     return filename

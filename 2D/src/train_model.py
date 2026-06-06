@@ -10,7 +10,6 @@ from training_sources import (
     pulse_source,
 )
  
-
 def training(params):
 
     num_x = params["num_x"]
@@ -115,7 +114,7 @@ def training(params):
         exact = exact.to("cpu")
         if obj_idx == 0 :
             loss = obj_func(FPN[:, :, :, 0] - exact[:, :, :, 0])
-        elif obj_idx == 2:
+        elif obj_idx == 1:
             loss = obj_func_time(FPN[:, :, :, :, 0] - exact[:, :, :, :, 0])
         loss.backward()
         opt.step()

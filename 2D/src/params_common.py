@@ -9,13 +9,12 @@ N_exact = 37
 
 # note num_x and num_y refer to cell centers:  so there will be num_x + 1 nodes in x
 num_x = 100
-T = 0.5
+T = 0.75
 
 #objective functional flag
 # 0 - final time scalar flux
-# 1 - final time all moments
-# 2 - over time scalar flux
-obj_idx = 2
+# 1 - over time scalar flux
+obj_idx = 0
 
 filter_order = 4
 
@@ -40,7 +39,6 @@ yr = 1
 
 num_features = 2 * (N + 1) + 2
 num_hidden = num_features // 2
-#num_hidden = 100
 
 num_basis = (N + 1) * (N + 2) // 2
 num_basis_exact = (N_exact + 1) * (N_exact + 2) // 2

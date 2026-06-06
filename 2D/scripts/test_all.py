@@ -60,6 +60,18 @@ results = {}
 
 params["IC_idx"] = 0
 
+
+num_x = 100
+num_y = 100
+dx = 0.02       
+dy = 0.02
+
+params["IC_idx"] = 0
+params["num_x"] = num_x
+params["num_y"] = num_y
+params["dx"] = dx
+params["dy"] = dy
+
 for T in T_gauss:
 
     results[(params["IC_idx"], T)] = {}
@@ -75,6 +87,11 @@ for T in T_gauss:
         params["num_hidden"] = num_hidden
         params["N"] = N
         params["T"] = T
+
+        dt = dx / 2
+        params["dt"] = dt
+        params["T"] = T
+        params["num_t"] = int((T + dt) // dt)
 
         FPN_error, FPN_error_reduction = testing(params)
 
@@ -138,7 +155,6 @@ for T in T_latt:
             FPN_error_reduction,
         )
 
-
 filter_type = params["filter_type"]
 if filter_type == 0:
     file_name = "error_reduction_NN"
@@ -146,6 +162,7 @@ elif filter_type in {1,2}:
     file_name = "error_reduction_const"
 
 with open(file_name, "w") as f:
+
     for (IC_idx, T), data in results.items():
 
         f.write("=" * 90 + "\n")

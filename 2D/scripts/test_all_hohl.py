@@ -81,8 +81,12 @@ for T in Ts:
             FPN_error_reduction,
         )
 
+if filter_type == 0:
+    file_name = "error_reduction_hohl_NN"
+elif filter_type in {1,2}:
+    file_name = "error_reduction_hohl_const"
 
-with open("error_reduction_table_hohlraum.txt", "w") as f:
+with open(file_name, "w") as f:
 
     for (IC_idx, T), data in results.items():
 

@@ -313,7 +313,7 @@ def timestepping(psi0, filt_switch, NN_model, params, sigs, sigt, N, num_basis, 
     psi_prev = torch.zeros([batch_size, num_y, num_x, num_basis], device=device)
     psi_prev[:, :, :, 0] = psi0
 
-    if obj_idx == 2:
+    if obj_idx == 1:
         psi_out = torch.zeros([batch_size, num_t, num_y, num_x, num_basis])
 
     filter_coeffs =filter_coefficients(filter_order, N, num_basis)
@@ -329,9 +329,9 @@ def timestepping(psi0, filt_switch, NN_model, params, sigs, sigt, N, num_basis, 
         psi = psi_prev + 0.5 * dt * (psi1_update + psi2_update)
         psi_prev = psi
 
-        if obj_idx == 2:
+        if obj_idx == 1:
             psi_out[:,k,:,:,:] = psi
-    if obj_idx in {0,1}:
+    if obj_idx == 0:
         psi_out = psi
     return psi_out, sigf[0, :, :]
 
