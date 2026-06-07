@@ -20,13 +20,13 @@ method_order = 2
 # 1 -  abs on every input
 # 2 - Alternating abs on moments 
 # 3 - Constant
-filter_type = 3
+filter_type = 1
 
 # objective functional index
 # 0 - scalar flux at final time
 # 1 - all moments at final time
 # 2 - scalar flux in time
-obj_idx = 0
+obj_idx = 2
 
 xl = -1
 xr = 1

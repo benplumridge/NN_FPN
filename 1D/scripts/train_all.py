@@ -15,13 +15,13 @@ from params_common import params
 from train_model import training
 
 
-num_trains = 5
+num_trains = 10
 params["num_IC"] = 4
 params["batch_size"] = (
     64  ## make batch size a multiple of the number of Initial Conditions
 )
 params["num_epochs"] = 200
-params["learning_rate"] = 1e-1
+params["learning_rate"] = 1e-2
 params["momentum_factor"] = 0.9
 params["sigs_max"] = 1
 GD_idx  = 1
@@ -45,6 +45,6 @@ for j in range(num_trains):
             params['num_features'] = 2 * N + 4
         NN_model = training(params)  
         if filter_type in (1,2):
-            torch.save(NN_model, f"trained_models/model_N{N}_{j+5}.pth")
+            torch.save(NN_model, f"trained_models/model_N{N}_{j}.pth")
         if filter_type == 3:
-            torch.save(NN_model, f"trained_models_const/model_N{N}_{j+5}.pth")
+            torch.save(NN_model, f"trained_models_const/model_N{N}_{j}.pth")
