@@ -24,9 +24,8 @@ filter_type = 1
 
 # objective functional index
 # 0 - scalar flux at final time
-# 1 - all moments at final time
-# 2 - scalar flux in time
-obj_idx = 2
+# 1 - scalar flux in time
+obj_idx = 1
 
 xl = -1
 xr = 1

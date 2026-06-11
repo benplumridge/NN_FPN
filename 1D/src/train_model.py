@@ -27,7 +27,7 @@ def training(params):
     obj_idx   = params["obj_idx"]
 
     if filter_type in (1,2):
-        NN_model = SimpleNN(num_features, num_hidden,N)
+        NN_model = SimpleNN(num_features, num_hidden)
     elif filter_type == 3:
         NN_model = SimpleNN_const()
 
@@ -73,9 +73,7 @@ def training(params):
 
         if obj_idx == 0:
             loss = obj_func(psi[:, :, 0] - exact[:, :, 0])
-        elif obj_idx == 1:
-            loss = obj_func(psi - exact[:, :, :N+1])
-        elif obj_idx ==2:
+        elif obj_idx ==1:
             loss = obj_func_time(psi[:, :, :, 0] - exact[:, :, :, 0])
         
         loss.backward()

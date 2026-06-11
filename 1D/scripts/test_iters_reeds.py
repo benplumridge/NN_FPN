@@ -11,7 +11,7 @@ from test_model import testing
 IC_idx = 6
 params["IC_idx"] = IC_idx
 
-num_tests = 5
+num_tests = 10
 
 params["batch_size"] = 1
 params["tt_flag"] = 1

@@ -18,7 +18,7 @@ from test_model import testing
 # 6 - Reeds
 # IC_idx = 2
 
-num_tests = 5
+num_tests = 1
 
 params["batch_size"] = 1
 params["tt_flag"] = 1
@@ -26,8 +26,8 @@ params["device"] = "cpu"
 params["ablation_idx"] = 0 
 
 IC_indices = [0, 1, 2]
-Ns = [3, 7, 9]
-#Ns = [3]
+#Ns = [3, 7, 9]
+Ns = [3]
 
 filter_type = params["filter_type"]
 if filter_type == 1:

@@ -23,6 +23,8 @@ params["device"] = "cpu"
 params["ablation_idx"] = 0
 # params['IC_idx'] = IC_idx
 
+#Ns = [3, 7, 9]
+Ns = [3]
 N_exact = 127
 filter_order = 4
 num_x = params["num_x"]
@@ -30,7 +32,7 @@ dx = params["dx"]
 
 for IC_idx in [0, 1, 2]:
     params["IC_idx"] = IC_idx
-    for N in [3, 7, 9]:
+    for N in Ns:
         filt_input = torch.arange(0, N + 1, 1) / (N + 1)
         filter = -torch.log(filter_func(filt_input, filter_order))
         num_features = 2 * N + 4
@@ -49,7 +51,7 @@ for IC_idx in [0, 1, 2]:
 
 params["IC_idx"] = 6
 #for N in [3]:
-for N in [3, 7, 9]:
+for N in Ns:
     filt_input = torch.arange(0, N + 1, 1) / (N + 1)
     filter = -torch.log(filter_func(filt_input, filter_order))
     num_features = 2 * N + 4

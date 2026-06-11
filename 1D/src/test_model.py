@@ -24,29 +24,12 @@ def testing(params, model_idx):
     IC_idx = params["IC_idx"]
     filter_type = params["filter_type"]
     show_plot   = params["show_plot"]
-
+    obj_idx    = params["obj_idx"]
 
     model_filename = load_model(N, model_idx, filter_type)
     NN_model = torch.load(model_filename, map_location=torch.device(device), weights_only = False)
     NN_model.to(device)
     NN_model.eval()
-
-
-        # for name, param in NN_model.named_parameters():
-        #     if 'weight' in name and param.requires_grad:
-        #         norm = torch.norm(param).item()
-        #         print(f"Layer: {name} | Weight norm: {norm:.4f}")
-
-    # elif filter_type == 3:
-    #     if N == 3:
-    #         sigf = 27.1199
-    #     elif N == 7:
-    #         sigf = 16.1425
-    #     elif N == 9:
-    #         sigf = 10.2298
-    #     else:
-    #         sigf = 10
-    #     NN_model = sigf
 
     with torch.no_grad():
         if IC_idx == 0:
@@ -108,18 +91,33 @@ def testing(params, model_idx):
             psi0, filter_type, NN_model, params, sigs, sigt, N, source, batch_size, device
         )
 
-        error0 = torch.sqrt(
-            obj_func(PN - exact[:, :, 0 : N + 1]) / obj_func(exact[:, :, 0 : N + 1])
-        )
-        errorf = torch.sqrt(
-            obj_func(FPN - exact[:, :, 0 : N + 1]) / obj_func(exact[:, :, 0 : N + 1])
-        )
-        flux_err0 = torch.sqrt(
-            obj_func(PN[:, :, 0] - exact[:, :, 0]) / obj_func(exact[:, :, 0])
-        )
-        flux_errf = torch.sqrt(
-            obj_func(FPN[:, :, 0] - exact[:, :, 0]) / obj_func(exact[:, :, 0])
-        )
+        if obj_idx == 0:
+            error0 = torch.sqrt(
+                obj_func(PN - exact[:, :, 0 : N + 1]) / obj_func(exact[:, :, 0 : N + 1])
+            )
+            errorf = torch.sqrt(
+                obj_func(FPN - exact[:, :, 0 : N + 1]) / obj_func(exact[:, :, 0 : N + 1])
+            )
+            flux_err0 = torch.sqrt(
+                obj_func(PN[:, :, 0] - exact[:, :, 0]) / obj_func(exact[:, :, 0])
+            )
+            flux_errf = torch.sqrt(
+                obj_func(FPN[:, :, 0] - exact[:, :, 0]) / obj_func(exact[:, :, 0])
+            )
+
+        elif obj_idx == 1:
+            error0 = torch.sqrt(
+                obj_func_time(PN - exact[:, :, :, 0 : N + 1]) / obj_func_time(exact[:, :, :, 0 : N + 1])
+            )
+            errorf = torch.sqrt(
+                obj_func_time(FPN - exact[:, :, :, 0 : N + 1]) / obj_func_time(exact[:, :, :, 0 : N + 1])
+            )
+            flux_err0 = torch.sqrt(
+                obj_func_time(PN[:, :, :, 0] - exact[:, :, :, 0]) / obj_func_time(exact[:, :, :, 0])
+            )
+            flux_errf = torch.sqrt(
+                obj_func_time(FPN[:, :, :, 0] - exact[:, :, :, 0]) / obj_func_time(exact[:, :, :, 0])
+            )
 
     total_error_reduction = errorf / error0
     flux_error_reduction = flux_errf / flux_err0

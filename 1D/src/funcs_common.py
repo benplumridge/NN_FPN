@@ -10,21 +10,54 @@ class SimpleNN_const(nn.Module):
     def forward(self):
         return self.const
 
+# class SimpleNN(nn.Module):
+#     def __init__(self, num_features, num_hidden, N):
+#         super(SimpleNN, self).__init__()
+#         self.hidden = nn.Linear(num_features, num_hidden)  # (inputs,hidden)
+#         self.output = nn.Linear(num_hidden, 1)  # (hidden,output)
+#         self.N = N
+
+#     def forward(self, x):
+#         original_shape = x.shape
+#         x = torch.flatten(x, start_dim=0, end_dim=1)
+#         x = torch.relu(self.hidden(x))  # Activation hidden layer
+#         x = torch.relu(self.output(x))  # Activation output layer
+#         output_shape = [original_shape[0], original_shape[1], 1]
+#         return x.reshape(output_shape)  # torch.ones(output_shape)  #
+
 class SimpleNN(nn.Module):
-    def __init__(self, num_features, num_hidden, N):
+    def __init__(self, num_features, num_hidden):
         super(SimpleNN, self).__init__()
-        self.hidden = nn.Linear(num_features, num_hidden)  # (inputs,hidden)
+        self.hidden1 = nn.Linear(num_features, num_hidden)  # (inputs,hidden)
+        self.hidden2 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
+        self.hidden3 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
+        self.hidden4 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
+
+        #self.bn1 = nn.LayerNorm(num_features)
+        self.bn2 = nn.LayerNorm(num_hidden)
+        self.bn3 = nn.LayerNorm(num_hidden)
+        self.bn4 = nn.LayerNorm(num_hidden)
+        self.bn5 = nn.LayerNorm(num_hidden)
         self.output = nn.Linear(num_hidden, 1)  # (hidden,output)
-        self.N = N
+        # print(self)
 
     def forward(self, x):
+        # print("Input shape:", x.shape)  # Debugging line
         original_shape = x.shape
         x = torch.flatten(x, start_dim=0, end_dim=1)
-        x = torch.relu(self.hidden(x))  # Activation hidden layer
+        # print("Flattened input shape:", x.shape)  # Debugging line
+        #x = self.bn1(x)
+        x = torch.tanh(self.hidden1(x))      # Activation hidden layer
+        x = self.bn2(x)
+        x = torch.tanh(self.hidden2(x)) + x  # Activation hidden layer
+        x = self.bn3(x)
+        x = torch.tanh(self.hidden3(x)) + x  # Activation hidden layer
+        x = self.bn4(x)
+        x = torch.tanh(self.hidden4(x)) + x  # Activation hidden layer
+        x = self.bn5(x)
         x = torch.relu(self.output(x))  # Activation output layer
         output_shape = [original_shape[0], original_shape[1], 1]
-        return x.reshape(output_shape)  # torch.ones(output_shape)  #
-
+        return x.reshape(output_shape)
 
 def timestepping(
     y0, filter_type, NN_model, params, sigs, sigt, N, source, batch_size, device
@@ -109,9 +142,9 @@ def timestepping(
             )
             y = y_prev + 0.5 * dt * (y1_update + y2_update)
 
-            if obj_idx != 2:
+            if obj_idx != 1:
                 y_out = y
-            if obj_idx == 2:
+            if obj_idx == 1:
                 y_out[:,k,:,:] = y
             # boundary conditions for Reeds problem: reflecting at x = 0 and vacauum at x = 8
             if IC_idx == 6:
@@ -217,14 +250,14 @@ def preprocess_features(A_Dy, sigt_y, scattering, source, filter_type,  params):
     source_NN = NN_normalization(torch.abs(source))
 
     if filter_type == 1:
-        A_Dy_NN = NN_normalization(torch.abs(A_Dy))
+        A_Dy_NN   = NN_normalization(torch.abs(A_Dy))
         sigt_y_NN = NN_normalization(torch.abs(sigt_y))
 
     elif filter_type == 2:
         A_Dy_temp = A_Dy.clone()
         y_temp = sigt_y.clone()
 
-        A_Dy[:, :, 1::2] = torch.abs(A_Dy_temp[:, :, 1::2])
+        A_Dy[:, :, 1::2]   = torch.abs(A_Dy_temp[:, :, 1::2])
         sigt_y[:, :, 1::2] = torch.abs(y_temp[:, :, 1::2])
 
         sigt_y_NN = NN_normalization(sigt_y)

@@ -20,7 +20,7 @@ params["num_IC"] = 4
 params["batch_size"] = (
     64  ## make batch size a multiple of the number of Initial Conditions
 )
-params["num_epochs"] = 200
+params["num_epochs"] = 500
 params["learning_rate"] = 1e-2
 params["momentum_factor"] = 0.9
 params["sigs_max"] = 1
