@@ -11,7 +11,7 @@ from numpy import savetxt
 
 # Add src to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
-from params_common import params, resolve_device
+from params_common import model_tag_from_params, params, resolve_device, tagged_model_path
 from train_model import training
 
 
@@ -37,6 +37,7 @@ params["IC_idx"] = 0
 params["device"] = resolve_device(params.get("device"))
 params["ablation_idx"] = 0
 filter_type = params["filter_type"]
+params["model_tag"] = model_tag_from_params(params)
 
 for j in range(num_trains):
     for n in [3, 7, 9]:
@@ -46,6 +47,6 @@ for j in range(num_trains):
             params["num_features"] = 2 * N + 4
         NN_model = training(params)
         if filter_type in (1, 2):
-            torch.save(NN_model, f"trained_models/model_N{N}_{j}.pth")
+            torch.save(NN_model, tagged_model_path(N, j, filter_type, params["model_tag"]))
         if filter_type == 3:
-            torch.save(NN_model, f"trained_models_const/model_N{N}_{j}.pth")
+            torch.save(NN_model, tagged_model_path(N, j, filter_type, params["model_tag"]))

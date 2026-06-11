@@ -1,3 +1,5 @@
+import re
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -9,6 +11,30 @@ def resolve_device(value=None):
     if value is None or str(value).lower() == "auto":
         return torch.device("cuda" if torch.cuda.is_available() else "cpu")
     return torch.device(value)
+
+
+def model_tag_from_params(params_or_value=None):
+    if isinstance(params_or_value, dict):
+        value = (
+            params_or_value.get("model_tag")
+            or params_or_value.get("training_data")
+            or params_or_value.get("training_setup")
+        )
+    else:
+        value = params_or_value
+
+    tag = str(value or "paper").lower()
+    tag = re.sub(r"[^a-z0-9_-]+", "-", tag).strip("-")
+    return tag or "paper"
+
+
+def tagged_model_path(N, model_idx, filter_type, model_tag=None):
+    tag = model_tag_from_params(model_tag)
+    if filter_type in (1, 2):
+        return f"trained_models/model_{tag}_N{N}_{model_idx}.pth"
+    if filter_type == 3:
+        return f"trained_models_const/model_{tag}_N{N}_{model_idx}.pth"
+    raise ValueError(f"Unsupported filter_type: {filter_type}")
 
 
 N = 3

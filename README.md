@@ -130,6 +130,7 @@ The workflow writes checkpoints and generated figures/tables into the correspond
 1D/results_nn/                 NN simulation figures
 1D/results_const/              constant simulation figures
 1D/error_reduction_table*.txt  summary tables
+1D/error_reduction_table*.csv  CSV copies of the summary table cells
 ```
 
 2D outputs:
@@ -140,6 +141,7 @@ The workflow writes checkpoints and generated figures/tables into the correspond
 2D/results_nn/                 NN simulation figures
 2D/results_const/              constant simulation figures
 2D/error_reduction_*           summary tables when reference files are available
+2D/error_reduction_*.csv       CSV copies of the 2D summary table cells
 ```
 
 ## Figure Generation
