@@ -2,6 +2,15 @@ import torch
 import torch.optim as optim
 import numpy as np
 
+
+def resolve_device(value=None):
+    if isinstance(value, torch.device):
+        return value
+    if value is None or str(value).lower() == "auto":
+        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    return torch.device(value)
+
+
 bias_init = 0
 
 N = 3
@@ -11,7 +20,7 @@ N_exact = 37
 num_x = 100
 T = 0.5
 
-#objective functional flag
+# objective functional flag
 # 0 - final time scalar flux
 # 1 - over time scalar flux
 obj_idx = 1
@@ -22,10 +31,10 @@ filter_order = 4
 # 0 - Neural network
 # 1 - Constant trained
 # 2 - Constant input
-filter_type = 1
+filter_type = 0
 
-#constant filter strength for filter_type = 2
-sigf_const =  15
+# constant filter strength for filter_type = 2
+sigf_const = 15
 
 show_sym_errors = 0
 show_plots = 0
@@ -82,12 +91,12 @@ params = {
     "num_basis": num_basis,
     "filter_order": filter_order,
     "filter_type": filter_type,
-     "sigf_const" : sigf_const,
+    "sigf_const": sigf_const,
     "num_basis_exact": num_basis_exact,
     "plot_idx": plot_idx,
     "show_plots": show_plots,
     "show_sym_errors": show_sym_errors,
     "show_slices": show_slices,
-    "obj_idx"    : obj_idx,
-    "bias_init"  : bias_init
+    "obj_idx": obj_idx,
+    "bias_init": bias_init,
 }

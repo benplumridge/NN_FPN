@@ -1,7 +1,37 @@
 import torch
 import numpy as np
 import torch.nn as nn
-    
+
+
+_TIMESTEPPING_TENSOR_CACHE = {}
+
+
+def _device_cache_key(device):
+    device = torch.device(device)
+    return device.type, device.index
+
+
+def _timestepping_tensors(N, filter_order, device):
+    key = (int(N), int(filter_order), _device_cache_key(device))
+    cached = _TIMESTEPPING_TENSOR_CACHE.get(key)
+    if cached is not None:
+        return cached
+
+    n = torch.arange(1, N + 1, dtype=torch.float32, device=device)
+    a = n / torch.sqrt((2 * n - 1) * (2 * n + 1))
+    A = torch.diag(a, 1) + torch.diag(a, -1)
+
+    eigA, V = torch.linalg.eigh(A)
+    absA = torch.matmul(torch.matmul(V, torch.diag(torch.abs(eigA))), V.T)
+
+    filt_input = torch.arange(0, N + 1, 1, device=device) / (N + 1)
+    filter_coeffs = -torch.log(filter_func(filt_input, filter_order))
+
+    cached = A, absA, filter_coeffs
+    _TIMESTEPPING_TENSOR_CACHE[key] = cached
+    return cached
+
+
 class SimpleNN_const(nn.Module):
     def __init__(self):
         super().__init__()
@@ -9,6 +39,7 @@ class SimpleNN_const(nn.Module):
 
     def forward(self):
         return self.const
+
 
 class SimpleNN(nn.Module):
     def __init__(self, num_features, num_hidden, N):
@@ -37,24 +68,14 @@ def timestepping(
     num_x = params["num_x"]
     num_t = params["num_t"]
     method_order = params["method_order"]
-    obj_idx   = params["obj_idx"]
-    
-    # CONSTRUCT A vector: does not need updating
-    a = torch.zeros(N)
+    obj_idx = params["obj_idx"]
 
-    for n in range(1, N + 1):
-        a[n - 1] = n / np.sqrt((2 * n - 1) * (2 * n + 1))
-    A = torch.diag(a, 1) + torch.diag(a, -1)
-
-    eigA, V = torch.linalg.eig(A)
-    eigA = torch.real(eigA)
-    V = torch.real(V)
-    absA = torch.matmul(torch.matmul(V, torch.diag(torch.abs(eigA))), torch.linalg.inv(V))
+    A, absA, filter_coeffs = _timestepping_tensors(
+        N, params["filter_order"], device
+    )
 
     source = source.to(device)
 
-    A = A.to(device)
-    absA = absA.to(device)
     sigt = sigt.to(device)
     sigs = sigs.to(device)
 
@@ -63,7 +84,7 @@ def timestepping(
     y = y_prev
     source_in = source[:, :, None]
 
-    y_out = torch.zeros(batch_size, num_t, num_x, N+1)
+    y_out = torch.zeros(batch_size, num_t, num_x, N + 1, device=device)
 
     if tt_flag == 0:
         sigt_in = sigt[:, None, None]
@@ -85,6 +106,7 @@ def timestepping(
             source_in,
             sigt_in,
             sigs_in,
+            filter_coeffs,
         )
         y1 = y_prev + dt * y1_update
 
@@ -106,19 +128,21 @@ def timestepping(
                 source_in,
                 sigt_in,
                 sigs_in,
+                filter_coeffs,
             )
             y = y_prev + 0.5 * dt * (y1_update + y2_update)
 
             if obj_idx != 2:
                 y_out = y
             if obj_idx == 2:
-                y_out[:,k,:,:] = y
+                y_out[:, k, :, :] = y
             # boundary conditions for Reeds problem: reflecting at x = 0 and vacauum at x = 8
             if IC_idx == 6:
                 y = reeds_BC(y, N)
         y_prev = y
 
     return y_out, sigf
+
 
 def PN_update(
     params,
@@ -132,20 +156,16 @@ def PN_update(
     source_in,
     sigt,
     sigs,
+    filter_coeffs,
 ):
     batch_size = params["batch_size"]
     device = params["device"]
     IC_idx = params["IC_idx"]
     num_x = params["num_x"]
-    dx    = params["dx"]
+    dx = params["dx"]
     method_order = params["method_order"]
 
-    filter_order = params["filter_order"]
-    filt_input = torch.arange(0, N + 1, 1) / (N + 1)
-    filter = -torch.log(filter_func(filt_input, filter_order))
-    filter = filter.to(device)
-
-    slope  = torch.zeros([batch_size, num_x+2, N + 1], device=device)
+    slope = torch.zeros([batch_size, num_x + 2, N + 1], device=device)
     y_expand = torch.zeros([batch_size, num_x + 2, N + 1], device=device)
 
     y_expand[:, 1 : num_x + 1, :] = y_prev
@@ -154,27 +174,31 @@ def PN_update(
         y_expand[:, num_x + 1, :] = y_prev[:, 0, :]
 
     if method_order == 2:
-        slope[:, 1 : num_x + 1, :] = minmod(y_expand[:, 2 : num_x + 2, :] - y_expand[:, 1 : num_x + 1, :],
-                                    y_expand[:, 1 : num_x + 1, :] - y_expand[:, 0:num_x, :])
+        slope[:, 1 : num_x + 1, :] = minmod(
+            y_expand[:, 2 : num_x + 2, :] - y_expand[:, 1 : num_x + 1, :],
+            y_expand[:, 1 : num_x + 1, :] - y_expand[:, 0:num_x, :],
+        )
 
         if IC_idx != 6:
-            slope[:,0,:]       = slope[:,num_x,:]
-            slope[:,num_x+1,:] = slope[:,1,:]
+            slope[:, 0, :] = slope[:, num_x, :]
+            slope[:, num_x + 1, :] = slope[:, 1, :]
 
+    yL_plus = y_expand[:, 1 : num_x + 1, :] + 0.5 * slope[:, 1 : num_x + 1, :]
 
-    yL_plus = y_expand[:, 1 : num_x + 1, :] + 0.5*slope[:,1:num_x+1,:]
-    
-    yR_plus = y_expand[:, 2 : num_x + 2, :] - 0.5*slope[:,2:num_x+2,:]
-    
-    Ay_plus = 0.5*torch.matmul(yL_plus + yR_plus, A.T)  - 0.5*torch.matmul(yR_plus - yL_plus, absA.T)
+    yR_plus = y_expand[:, 2 : num_x + 2, :] - 0.5 * slope[:, 2 : num_x + 2, :]
 
-    yL_minus = y_expand[:, 0 : num_x , :] + 0.5*slope[:,0:num_x,:]
-    
-    yR_minus = y_expand[:, 1 : num_x + 1, :] - 0.5*slope[:,1:num_x+1,:]  
-    
-    Ay_minus = 0.5*torch.matmul(yL_minus + yR_minus, A.T) - 0.5*torch.matmul(yR_minus - yL_minus, absA.T)
-    A_Dy = (Ay_plus - Ay_minus)/dx
-    
+    Ay_plus = 0.5 * torch.matmul(yL_plus + yR_plus, A.T) - 0.5 * torch.matmul(
+        yR_plus - yL_plus, absA.T
+    )
+
+    yL_minus = y_expand[:, 0:num_x, :] + 0.5 * slope[:, 0:num_x, :]
+
+    yR_minus = y_expand[:, 1 : num_x + 1, :] - 0.5 * slope[:, 1 : num_x + 1, :]
+
+    Ay_minus = 0.5 * torch.matmul(yL_minus + yR_minus, A.T) - 0.5 * torch.matmul(
+        yR_minus - yL_minus, absA.T
+    )
+    A_Dy = (Ay_plus - Ay_minus) / dx
 
     sigf = torch.zeros([batch_size, num_x], device=device)
 
@@ -187,10 +211,10 @@ def PN_update(
         sigf = NN_model(inputs).squeeze(-1)
 
     if filter_type == 3:
-        sigf0  = NN_model()
-        #sigf0 = torch.max(NN_model(),0)
-        sigf = sigf0*torch.ones([batch_size,num_x])
-        #print(sigf0)
+        sigf0 = NN_model()
+        # sigf0 = torch.max(NN_model(),0)
+        sigf = sigf0 * torch.ones([batch_size, num_x], device=device)
+        # print(sigf0)
 
     if IC_idx == 6:
         sigf[:, 0] = sigf[:, 1]
@@ -200,9 +224,8 @@ def PN_update(
     y_update = -A_Dy - sigt_y
 
     if filter_type in (1, 2, 3):
-
-        y_update = y_update - sigf[:, :, None] * y_prev * filter
-        #print('sigf_max = ',torch.max(sigf[:, :, None]), ' sigf_min = ',torch.min(sigf[:, :, None]))
+        y_update = y_update - sigf[:, :, None] * y_prev * filter_coeffs
+        # print('sigf_max = ',torch.max(sigf[:, :, None]), ' sigf_min = ',torch.min(sigf[:, :, None]))
 
     y_update[:, :, 0] = (
         y_update[:, :, 0] + sigs[:, :, 0] * y_expand[:, 1 : num_x + 1, 0] + source
@@ -211,7 +234,7 @@ def PN_update(
     return y_update, sigf
 
 
-def preprocess_features(A_Dy, sigt_y, scattering, source, filter_type,  params):
+def preprocess_features(A_Dy, sigt_y, scattering, source, filter_type, params):
     ablation_idx = params["ablation_idx"]
     scattering_NN = NN_normalization(torch.abs(scattering))
     source_NN = NN_normalization(torch.abs(source))
@@ -233,27 +256,39 @@ def preprocess_features(A_Dy, sigt_y, scattering, source, filter_type,  params):
     if ablation_idx == 0:
         inputs = torch.cat((A_Dy_NN, sigt_y_NN, scattering_NN, source_NN), dim=-1)
     elif ablation_idx == 1:
-        inputs = torch.cat((A_Dy_NN, 0*sigt_y_NN, 0*scattering_NN, 0*source_NN), dim=-1)
+        inputs = torch.cat(
+            (A_Dy_NN, 0 * sigt_y_NN, 0 * scattering_NN, 0 * source_NN), dim=-1
+        )
     if ablation_idx == 2:
-        inputs = torch.cat((0*A_Dy_NN, sigt_y_NN, 0*scattering_NN, 0*source_NN), dim=-1)
+        inputs = torch.cat(
+            (0 * A_Dy_NN, sigt_y_NN, 0 * scattering_NN, 0 * source_NN), dim=-1
+        )
     if ablation_idx == 3:
-        inputs = torch.cat((0*A_Dy_NN, 0*sigt_y_NN, scattering_NN, 0*source_NN), dim=-1)
+        inputs = torch.cat(
+            (0 * A_Dy_NN, 0 * sigt_y_NN, scattering_NN, 0 * source_NN), dim=-1
+        )
     if ablation_idx == 4:
-        inputs = torch.cat((0*A_Dy_NN, 0*sigt_y_NN, 0*scattering_NN, source_NN), dim=-1)
+        inputs = torch.cat(
+            (0 * A_Dy_NN, 0 * sigt_y_NN, 0 * scattering_NN, source_NN), dim=-1
+        )
     if ablation_idx == 5:
-        inputs = torch.cat((0*A_Dy_NN, 0*sigt_y_NN, 0*scattering_NN, 0*source_NN), dim=-1)
+        inputs = torch.cat(
+            (0 * A_Dy_NN, 0 * sigt_y_NN, 0 * scattering_NN, 0 * source_NN), dim=-1
+        )
     if ablation_idx == 6:
-        inputs = torch.cat((0*A_Dy_NN, sigt_y_NN, scattering_NN, source_NN), dim=-1)
+        inputs = torch.cat((0 * A_Dy_NN, sigt_y_NN, scattering_NN, source_NN), dim=-1)
     if ablation_idx == 7:
-        inputs = torch.cat((A_Dy_NN, 0*sigt_y_NN, scattering_NN, source_NN), dim=-1)
+        inputs = torch.cat((A_Dy_NN, 0 * sigt_y_NN, scattering_NN, source_NN), dim=-1)
     if ablation_idx == 8:
-        inputs = torch.cat((A_Dy_NN, sigt_y_NN, 0*scattering_NN, source_NN), dim=-1)
+        inputs = torch.cat((A_Dy_NN, sigt_y_NN, 0 * scattering_NN, source_NN), dim=-1)
     if ablation_idx == 9:
-        inputs = torch.cat((A_Dy_NN, sigt_y_NN, scattering_NN, 0*source_NN), dim=-1)
+        inputs = torch.cat((A_Dy_NN, sigt_y_NN, scattering_NN, 0 * source_NN), dim=-1)
     return inputs
+
 
 def filter_func(z, p):
     return torch.exp(-(z**p))
+
 
 def NN_normalization(f):
     f_mean = torch.mean(f, dim=[1], keepdim=True)
@@ -274,12 +309,14 @@ def obj_func(z):
     return torch.mean(z**2)
     # return (dx * z.pow(2).sum(dim=1)).mean()
 
+
 def obj_func_time(z):
     dims = tuple(i for i in range(z.ndim) if i != 1)
     return torch.sum(torch.mean(z**2, dim=dims))
 
+
 def compute_cell_average(f, batch_size, num_x):
-    f_average = torch.zeros(batch_size, num_x)
+    f_average = torch.zeros(batch_size, num_x, dtype=f.dtype, device=f.device)
     for m in range(0, num_x):
         f_average[:, m] = 0.5 * (f[:, m] + f[:, m + 1])
 

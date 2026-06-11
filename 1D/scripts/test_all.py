@@ -14,12 +14,13 @@ import torch
 
 # Add src to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
-from params_common import params, filter_func
+from params_common import params, resolve_device
+from funcs_common import filter_func
 from test_model import testing
 
 params["batch_size"] = 1
 params["tt_flag"] = 1
-params["device"] = "cpu"
+params["device"] = resolve_device(params.get("device"))
 params["ablation_idx"] = 0
 # params['IC_idx'] = IC_idx
 
@@ -48,7 +49,7 @@ for IC_idx in [0, 1, 2]:
             testing(params)
 
 params["IC_idx"] = 6
-#for N in [3]:
+# for N in [3]:
 for N in [3, 7, 9]:
     filt_input = torch.arange(0, N + 1, 1) / (N + 1)
     filter = -torch.log(filter_func(filt_input, filter_order))

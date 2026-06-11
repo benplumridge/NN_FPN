@@ -3,10 +3,18 @@ import torch.nn as nn
 import torch.optim as optim
 
 
+def resolve_device(value=None):
+    if isinstance(value, torch.device):
+        return value
+    if value is None or str(value).lower() == "auto":
+        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    return torch.device(value)
+
+
 N = 3
 N_exact = 127
 num_x = 128
-T     = 0.5
+T = 0.5
 # num_x = 128*4
 # T = 5
 
@@ -18,7 +26,7 @@ method_order = 2
 # filter type
 # 0 - Off
 # 1 -  abs on every input
-# 2 - Alternating abs on moments 
+# 2 - Alternating abs on moments
 # 3 - Constant
 filter_type = 1
 
@@ -26,7 +34,7 @@ filter_type = 1
 # 0 - scalar flux at final time
 # 1 - all moments at final time
 # 2 - scalar flux in time
-obj_idx = 2
+obj_idx = 0
 
 xl = -1
 xr = 1
@@ -42,9 +50,9 @@ num_t = int((T + dt) // dt)
 x_edges = torch.linspace(xl, xr, num_x + 1)
 x = torch.linspace(xl + dx / 2, xr - dx / 2, num_x)
 
-if filter_type in (1,2): 
+if filter_type in (1, 2):
     num_features = 2 * N + 4
-    num_hidden   = 50
+    num_hidden = 50
     weight_decay = 1e-5
 elif filter_type == 3:
     num_hidden = 0
@@ -67,9 +75,9 @@ params = {
     "L": L,
     "T": T,
     "filter_type": filter_type,
-    "weight_decay" : weight_decay,
-    "show_plot"    : show_plot,
-    "filter_order" : filter_order,
-    "method_order" : method_order,
-    "obj_idx"      : obj_idx
- }
+    "weight_decay": weight_decay,
+    "show_plot": show_plot,
+    "filter_order": filter_order,
+    "method_order": method_order,
+    "obj_idx": obj_idx,
+}

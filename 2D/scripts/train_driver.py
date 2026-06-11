@@ -16,6 +16,7 @@ params["num_epochs"] = 200
 params["learning_rate"] = 1e-2
 params["momentum_factor"] = 0.9
 params["sigs_max"] = 1
+params["filter_type"] = 0
 params["tt_flag"] = 0
 params["IC_idx"] = 0
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

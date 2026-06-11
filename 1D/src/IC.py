@@ -18,6 +18,7 @@ def gaussian_training(num_x, x):
 
     return z, sigs, sigt, source
 
+
 def gaussian_testing(num_x, x):
     z = torch.zeros([num_x + 1])
     c = 0
@@ -31,6 +32,7 @@ def gaussian_testing(num_x, x):
     sigt = sigs
 
     return z, sigs, sigt, source
+
 
 def heaviside(num_x, x):
     z = torch.zeros([num_x + 1])

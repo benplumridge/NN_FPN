@@ -3,7 +3,7 @@ import os
 import torch
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
-from params_common import params
+from params_common import params, resolve_device
 from test_model import testing
 
 
@@ -19,7 +19,7 @@ from test_model import testing
 
 params["batch_size"] = 1
 params["tt_flag"] = 1
-params["device"] = "cpu"
+params["device"] = resolve_device(params.get("device"))
 
 N_exact = 37
 filter_order = 4
@@ -45,14 +45,14 @@ params["dx"] = dx
 params["dy"] = dy
 params["x"] = x
 params["y"] = y
-params["x_edges"] = y_edges
+params["x_edges"] = x_edges
 params["y_edges"] = y_edges
 
 params["dt"] = params["dx"] / 2
 
 Ns = [3, 5, 7, 9]
 T_gauss = [0.75]
-T_latt  = [1.6, 3.2]
+T_latt = [1.6, 3.2]
 Ts = [T_gauss, T_latt]
 # Dictionary to store results
 # results[(IC_idx, T)][N] = (error, reduction)
@@ -63,7 +63,7 @@ params["IC_idx"] = 0
 
 num_x = 100
 num_y = 100
-dx = 0.02       
+dx = 0.02
 dy = 0.02
 
 params["IC_idx"] = 0
@@ -73,11 +73,9 @@ params["dx"] = dx
 params["dy"] = dy
 
 for T in T_gauss:
-
     results[(params["IC_idx"], T)] = {}
 
     for N in Ns:
-
         num_features = 2 * (N + 1) + 2
         num_hidden = num_features // 2
         num_basis = (N + 1) * (N + 2) // 2
@@ -129,11 +127,9 @@ params["x_edges"] = x_edges
 params["y_edges"] = y_edges
 
 for T in T_latt:
-
     results[(params["IC_idx"], T)] = {}
 
     for N in Ns:
-
         num_basis = (N + 1) * (N + 2) // 2
         num_features = 2 * (N + 1) + 2
         num_hidden = num_features // 2
@@ -158,13 +154,11 @@ for T in T_latt:
 filter_type = params["filter_type"]
 if filter_type == 0:
     file_name = "error_reduction_NN"
-elif filter_type in {1,2}:
+elif filter_type in {1, 2}:
     file_name = "error_reduction_const"
 
 with open(file_name, "w") as f:
-
     for (IC_idx, T), data in results.items():
-
         f.write("=" * 90 + "\n")
         f.write(f"Test Problem IC_idx = {IC_idx}, Final Time T = {T}\n")
         f.write("=" * 90 + "\n\n")
@@ -173,10 +167,7 @@ with open(file_name, "w") as f:
         header = ""
 
         for N in Ns:
-            header += (
-                f"{f'N = {N} Error':>20}"
-                f"{f'N = {N} Reduction':>25}"
-            )
+            header += f"{f'N = {N} Error':>20}{f'N = {N} Reduction':>25}"
 
         f.write(header + "\n")
         f.write("-" * len(header) + "\n")
@@ -185,12 +176,8 @@ with open(file_name, "w") as f:
         row = ""
 
         for N in Ns:
-
             error, reduction = data[N]
 
-            row += (
-                f"{error:>20.4f}"
-                f"{reduction:>25.4f}"
-            )
+            row += f"{error:>20.4f}{reduction:>25.4f}"
 
         f.write(row + "\n\n\n")

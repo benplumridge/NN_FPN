@@ -87,10 +87,10 @@ def testing(params):
         error_reduction = sq_errorf / sq_error0
         print("error_reduction = ", error_reduction)
 
-    sigf = sigf[0, :].detach().numpy()
-    exact = exact[0, :].detach().numpy()
-    PN = PN[0, :].detach().numpy()
-    FPN = FPN[0, :].detach().numpy()
+    sigf = sigf[0, :].detach().cpu().numpy()
+    exact = exact[0, :].detach().cpu().numpy()
+    PN = PN[0, :].detach().cpu().numpy()
+    FPN = FPN[0, :].detach().cpu().numpy()
 
     plt.rcParams.update({"font.size": 16})
     fig, ax1 = plt.subplots()

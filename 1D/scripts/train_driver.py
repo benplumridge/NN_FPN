@@ -11,7 +11,7 @@ from numpy import savetxt
 
 # Add src to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
-from params_common import params
+from params_common import params, resolve_device
 from train_model import training
 
 
@@ -20,14 +20,15 @@ params["batch_size"] = (
     64  ## make batch size a multiple of the number of Initial Conditions
 )
 params["num_epochs"] = 200
-params["learning_rate"] = 1e-1  # lr= 10  for N = 3,  l3 = 100 for N = 7,9 
+params["learning_rate"] = 1e-1  # lr= 10  for N = 3,  l3 = 100 for N = 7,9
 params["momentum_factor"] = 0.9
 params["sigs_max"] = 1
-#params["GD_optimizer"] = "SGD"
+params["obj_idx"] = 0
+# params["GD_optimizer"] = "SGD"
 params["GD_optimizer"] = "Adam"
 params["tt_flag"] = 0
 params["IC_idx"] = 0
-params["device"] = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
+params["device"] = resolve_device(params.get("device"))
 params["ablation_idx"] = 0
 
 NN_model = training(params)
@@ -35,7 +36,7 @@ NN_model = training(params)
 
 filter_type = params["filter_type"]
 N = params["N"]
-if filter_type in (1,2):
+if filter_type in (1, 2):
     torch.save(NN_model, f"trained_models/model_N{N}_0.pth")
 elif filter_type == 3:
     torch.save(NN_model, f"trained_models_const/model_N{N}_0.pth")

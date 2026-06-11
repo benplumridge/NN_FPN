@@ -4,7 +4,7 @@ import torch
 
 # Add src to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
-from params_common import params
+from params_common import params, resolve_device
 from test_model import testing
 
 
@@ -18,16 +18,16 @@ from test_model import testing
 # 6 - Reeds
 # IC_idx = 2
 
-num_tests = 5
+num_tests = params.get("num_tests", 5)
 
 params["batch_size"] = 1
 params["tt_flag"] = 1
-params["device"] = "cpu"
-params["ablation_idx"] = 0 
+params["device"] = resolve_device(params.get("device"))
+params["ablation_idx"] = 0
 
 IC_indices = [0, 1, 2]
 Ns = [3, 7, 9]
-#Ns = [3]
+# Ns = [3]
 
 filter_type = params["filter_type"]
 if filter_type == 1:
@@ -37,16 +37,15 @@ elif filter_type == 3:
 
 
 with open(file_name, "w") as f:
-
     for IC_idx in IC_indices:
         params["IC_idx"] = IC_idx
         f.write(f"IC_idx = {IC_idx}\n")
-        f.write("t\t" + "\t".join([f"N={N}" for N in Ns]) + "\n")  
+        f.write("t\t" + "\t".join([f"N={N}" for N in Ns]) + "\n")
 
         times = [0.5, 1.0]
 
         for T_val in times:
-            params["T"] = T_val 
+            params["T"] = T_val
             params["num_t"] = int((T_val + params["dt"]) // params["dt"])
             row = [f"{T_val:.1f}"]
 
@@ -65,7 +64,7 @@ with open(file_name, "w") as f:
                 row.append(f"{mean_val:.4f} ± {std_val:.4f}")
 
             f.write("\t".join(row) + "\n")
-        
-        f.write("\n")  
+
+        f.write("\n")
 
 print("Tables saved to error_reduction_table.txt")

@@ -2,8 +2,25 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import torch
-from IC import gaussian_testing, gaussian_training, step, disc_source, bump, hat, holhraum, lattice
-from funcs_common import obj_func, obj_func_time, timestepping, compute_cell_average, rotation_test
+import os
+from IC import (
+    gaussian_testing,
+    gaussian_training,
+    step,
+    disc_source,
+    bump,
+    hat,
+    holhraum,
+    lattice,
+)
+from funcs_common import (
+    obj_func,
+    obj_func_time,
+    timestepping,
+    compute_cell_average,
+    rotation_test,
+)
+
 
 def testing(params):
 
@@ -29,11 +46,13 @@ def testing(params):
     show_plots = params["show_plots"]
     show_sym_errors = params["show_sym_errors"]
     show_slices = params["show_slices"]
-    obj_idx     = params["obj_idx"]
+    obj_idx = params["obj_idx"]
 
-    if filter_type in {0,1}:
+    if filter_type in {0, 1}:
         model_filename = load_model(N, filter_type)
-        NN_model = torch.load(model_filename, map_location=torch.device(device), weights_only= False)
+        NN_model = torch.load(
+            model_filename, map_location=torch.device(device), weights_only=False
+        )
         NN_model.to(device)
         NN_model.eval()
 
@@ -113,30 +132,30 @@ def testing(params):
 
         if IC_idx == 0:
             exact_np = np.load("exact_solns/linesource_37.npy")
-            exact = torch.zeros(batch_size, num_y, num_x, num_basis_exact)
-            exact[0, :, :, :] = torch.from_numpy(exact_np)
+            exact = torch.zeros(batch_size, num_y, num_x, num_basis_exact, device=device)
+            exact[0, :, :, :] = torch.from_numpy(exact_np).to(device)
 
         elif IC_idx == 5:
             if T == 1.5:
-                exact_np = np.load("exact_solns/hohlraum_37_T15.npy") 
+                exact_np = np.load("exact_solns/hohlraum_37_T15.npy")
             elif T == 3.0:
-                exact_np = np.load("exact_solns/hohlraum_37_T30.npy") 
-            exact = torch.zeros(batch_size, num_y, num_x, num_basis_exact)
-            exact[0, :, :, :] = torch.from_numpy(exact_np)  
+                exact_np = np.load("exact_solns/hohlraum_37_T30.npy")
+            exact = torch.zeros(batch_size, num_y, num_x, num_basis_exact, device=device)
+            exact[0, :, :, :] = torch.from_numpy(exact_np).to(device)
 
         elif IC_idx == 6:
             if T == 1.6:
                 exact_np = np.load("exact_solns/lattice_37_T16.npy")
             elif T == 3.2:
                 exact_np = np.load("exact_solns/lattice_37_T32.npy")
-            exact = torch.zeros(batch_size, num_y, num_x, num_basis_exact)
-            exact[0, :, :, :] = torch.from_numpy(exact_np)
+            exact = torch.zeros(batch_size, num_y, num_x, num_basis_exact, device=device)
+            exact[0, :, :, :] = torch.from_numpy(exact_np).to(device)
 
         else:
             exact = timestepping(
                 psi0, 0, 0, params, sigs, sigt, N_exact, num_basis_exact, source
             )[0]
-            np.save("P37",  exact)
+            np.save("P37", exact)
 
         PN = timestepping(psi0, 0, 0, params, sigs, sigt, N, num_basis, source)[0]
         FPN, sigf = timestepping(
@@ -153,10 +172,12 @@ def testing(params):
                 / obj_func(exact[:, :, :, :num_basis])
             )
             flux_err0 = torch.sqrt(
-                obj_func(PN[:, :, :, 0] - exact[:, :, :, 0]) / obj_func(exact[:, :, :, 0])
+                obj_func(PN[:, :, :, 0] - exact[:, :, :, 0])
+                / obj_func(exact[:, :, :, 0])
             )
             flux_errf = torch.sqrt(
-                obj_func(FPN[:, :, :, 0] - exact[:, :, :, 0]) / obj_func(exact[:, :, :, 0])
+                obj_func(FPN[:, :, :, 0] - exact[:, :, :, 0])
+                / obj_func(exact[:, :, :, 0])
             )
         elif obj_idx == 1:
             error0 = torch.sqrt(
@@ -168,12 +189,13 @@ def testing(params):
                 / obj_func_time(exact[:, :, :, :, :num_basis])
             )
             flux_err0 = torch.sqrt(
-                obj_func_time(PN[:, :, :, :, 0] - exact[:, :, :, :, 0]) / obj_func_time(exact[:, :, :, :, 0])
+                obj_func_time(PN[:, :, :, :, 0] - exact[:, :, :, :, 0])
+                / obj_func_time(exact[:, :, :, :, 0])
             )
             flux_errf = torch.sqrt(
-                obj_func_time(FPN[:, :, :, :, 0] - exact[:, :, :, :, 0]) / obj_func_time(exact[:, :, :, :, 0])
+                obj_func_time(FPN[:, :, :, :, 0] - exact[:, :, :, :, 0])
+                / obj_func_time(exact[:, :, :, :, 0])
             )
-
 
     total_error_reduction = errorf / error0
     flux_error_reduction = flux_errf / flux_err0
@@ -195,12 +217,14 @@ def testing(params):
         flux_error_reduction,
     )
 
-    sigf = sigf.detach().numpy()
-    exact = exact[0, :, :, 0].detach().numpy()
-    PN = PN[0, :, :, 0].detach().numpy()
-    FPN = FPN[0, :, :, 0].detach().numpy()
+    os.makedirs(f"results/{ic_type}", exist_ok=True)
 
-    if IC_idx in {5,6}:
+    sigf = sigf.detach().cpu().numpy()
+    exact = exact[0, :, :, 0].detach().cpu().numpy()
+    PN = PN[0, :, :, 0].detach().cpu().numpy()
+    FPN = FPN[0, :, :, 0].detach().cpu().numpy()
+
+    if IC_idx in {5, 6}:
         floor_value = 1e-7
         exact = np.where(exact < floor_value, floor_value, exact)
         PN = np.where(PN < floor_value, floor_value, PN)
@@ -229,8 +253,8 @@ def testing(params):
     )
     ax_PN.tick_params(axis="y", which="both", left=False, right=False, labelleft=False)
     fig_PN.colorbar(contour_PN, ax=ax_PN, orientation="vertical", shrink=0.8)
-    
-    T_int = int(100*T)
+
+    T_int = int(100 * T)
     filename = f"results/{ic_type}/P{N}_t{T_int}.png"
     plt.savefig(filename, bbox_inches="tight", dpi=300)
 
@@ -280,19 +304,19 @@ def testing(params):
         # lines = [line1, line2, line3]
         labels = [line.get_label() for line in lines]
         ax_slice0.tick_params(axis="x", bottom=True, labelbottom=True)
-        #ax_slice0.legend(lines, labels, bbox_to_anchor=(1.08, 1.15), ncol=4, frameon=False)
+        # ax_slice0.legend(lines, labels, bbox_to_anchor=(1.08, 1.15), ncol=4, frameon=False)
         filename = f"results/{ic_type}/P{N}_slice0.png"
         plt.savefig(filename, bbox_inches="tight", dpi=300)
 
         fig_slice45, ax_slice45 = plt.subplots()
         xl45 = -np.sqrt(2)
-        xr45 =  np.sqrt(2)
+        xr45 = np.sqrt(2)
         plt.xlim(xl45, xr45)
         exact45 = exact[np.arange(exact.shape[0]), np.arange(exact.shape[0])]
-        PN45   = PN[np.arange(PN.shape[0]), np.arange(PN.shape[0])]
-        FPN45  = FPN[np.arange(FPN.shape[0]), np.arange(FPN.shape[0])]
+        PN45 = PN[np.arange(PN.shape[0]), np.arange(PN.shape[0])]
+        FPN45 = FPN[np.arange(FPN.shape[0]), np.arange(FPN.shape[0])]
         sigf45 = sigf[np.arange(FPN.shape[0]), np.arange(FPN.shape[0])]
-        x45      = torch.linspace(xl45, xr45, num_x)
+        x45 = torch.linspace(xl45, xr45, num_x)
 
         (line1,) = ax_slice45.plot(x45, exact45, color="r", label=f"$P_{{{N_exact}}}$")
         (line2,) = ax_slice45.plot(
@@ -309,13 +333,13 @@ def testing(params):
         # lines = [line1, line2, line3]
         labels = [line.get_label() for line in lines]
         ax_slice45.tick_params(axis="x", bottom=True, labelbottom=True)
-        #ax_slice45.legend(lines, labels, bbox_to_anchor=(1.08, 1.15), ncol=4, frameon=False)
+        # ax_slice45.legend(lines, labels, bbox_to_anchor=(1.08, 1.15), ncol=4, frameon=False)
         filename = f"results/{ic_type}/P{N}_slice45.png"
         plt.savefig(filename, bbox_inches="tight", dpi=300)
 
     fig_sig, ax_sig = plt.subplots(constrained_layout=True)
     contour_sig = ax_sig.contourf(y, x, sigf, levels, cmap=cmap_sigf)
-    ax_sig.set_title(fr"$\sigma_f$, $t = {T}$")
+    ax_sig.set_title(rf"$\sigma_f$, $t = {T}$")
     ax_sig.tick_params(
         axis="x", which="both", bottom=False, top=False, labelbottom=False
     )
@@ -323,11 +347,12 @@ def testing(params):
     fig_sig.colorbar(contour_sig, ax=ax_sig, orientation="vertical", shrink=0.8)
     filename = f"results/{ic_type}/sigf_FP{N}.png"
     plt.savefig(filename, bbox_inches="tight", dpi=300)
-    
+
     if show_plots == 1:
         plt.show()
 
     return flux_errf, flux_error_reduction
+
 
 def load_model(N, filter_type):
     valid_N = {3, 5, 7, 9}
@@ -335,7 +360,7 @@ def load_model(N, filter_type):
         raise ValueError(f"Invalid value for N: {N}. Expected one of {valid_N}.")
     if filter_type == 0:
         filename = f"trained_models/model_N{N}.pth"
-    elif filter_type in {1,2}:
+    elif filter_type in {1, 2}:
         filename = f"trained_models_const/model_N{N}.pth"
 
     return filename

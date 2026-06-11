@@ -13,7 +13,6 @@ def frame_source(num_x, num_y, x, y):
 
     for l in range(num_y + 1):
         for m in range(num_x + 1):
-
             if (
                 source_x_min <= torch.abs(x[m]) <= source_x_max
                 and torch.abs(y[l]) <= source_y_max
@@ -37,7 +36,6 @@ def two_rect_source(num_x, num_y, x, y):
 
     for l in range(num_y + 1):
         for m in range(num_x + 1):
-
             if (
                 source_x_min <= x[m] <= source_x_max
                 and source_y1_min <= y[l] <= source_y1_max

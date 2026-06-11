@@ -2,6 +2,15 @@ import torch
 import torch.nn as nn
 import numpy as np
 
+
+_SOLVER_TENSOR_CACHE = {}
+
+
+def _device_cache_key(device):
+    device = torch.device(device)
+    return device.type, device.index
+
+
 class SimpleNN_const(nn.Module):
     def __init__(self):
         super().__init__()
@@ -9,6 +18,7 @@ class SimpleNN_const(nn.Module):
 
     def forward(self):
         return self.const
+
 
 class SimpleNN(nn.Module):
     def __init__(self, num_features, num_hidden):
@@ -18,7 +28,7 @@ class SimpleNN(nn.Module):
         self.hidden3 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
         self.hidden4 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
 
-        #self.bn1 = nn.LayerNorm(num_features)
+        # self.bn1 = nn.LayerNorm(num_features)
         self.bn2 = nn.LayerNorm(num_hidden)
         self.bn3 = nn.LayerNorm(num_hidden)
         self.bn4 = nn.LayerNorm(num_hidden)
@@ -31,8 +41,8 @@ class SimpleNN(nn.Module):
         original_shape = x.shape
         x = torch.flatten(x, start_dim=0, end_dim=2)
         # print("Flattened input shape:", x.shape)  # Debugging line
-        #x = self.bn1(x)
-        x = torch.tanh(self.hidden1(x))      # Activation hidden layer
+        # x = self.bn1(x)
+        x = torch.tanh(self.hidden1(x))  # Activation hidden layer
         x = self.bn2(x)
         x = torch.tanh(self.hidden2(x)) + x  # Activation hidden layer
         x = self.bn3(x)
@@ -44,26 +54,31 @@ class SimpleNN(nn.Module):
         output_shape = [original_shape[0], original_shape[1], original_shape[2], 1]
         return x.reshape(output_shape)
 
+
 def obj_func(z):
     return torch.mean(z**2)
+
 
 def obj_func_time(z):
     dims = tuple(i for i in range(z.ndim) if i != 1)
     return torch.sum(torch.mean(z**2, dim=dims))
 
+
 def minmod(a, b):
     return 0.5 * (torch.sign(a) + torch.sign(b)) * torch.min(torch.abs(a), torch.abs(b))
+
 
 def filter_func(z, p):
     return torch.exp(-(z**p))
 
-def filter_coefficients(filter_order, N, num_basis):
-    filter = torch.zeros(N + 1)
+
+def filter_coefficients(filter_order, N, num_basis, device=None):
+    filter = torch.zeros(N + 1, device=device)
     filter[1 : N + 1] = -torch.log(
-        filter_func(torch.arange(1, N + 1) / (N + 1), filter_order)
+        filter_func(torch.arange(1, N + 1, device=device) / (N + 1), filter_order)
     )
 
-    filter_expand = torch.zeros(num_basis)
+    filter_expand = torch.zeros(num_basis, device=device)
     idx = 0
     for l in range(1, N + 2):
         filter_expand[idx : idx + l] = filter[l - 1]
@@ -71,35 +86,35 @@ def filter_coefficients(filter_order, N, num_basis):
     return filter_expand
 
 
-def compute_PN_matrices(N):
+def compute_PN_matrices(N, device=None):
     n_sys = (N + 1) * (N + 2) // 2
 
     # Initialize Mx, My as sparse matrices
-    Ax = torch.zeros((n_sys, n_sys), dtype=torch.float32)
-    Ay = torch.zeros((n_sys, n_sys), dtype=torch.float32)
-    sqrt2 = torch.sqrt(torch.tensor(2, dtype=torch.float32))
+    Ax = torch.zeros((n_sys, n_sys), dtype=torch.float32, device=device)
+    Ay = torch.zeros((n_sys, n_sys), dtype=torch.float32, device=device)
+    sqrt2 = torch.sqrt(torch.tensor(2, dtype=torch.float32, device=device))
 
     # Loop through values of m
     for m in range(1, N + 1):
-        i = torch.arange(1, m + 1)
+        i = torch.arange(1, m + 1, device=device)
         p = (m * (m - 1)) // 2 + i
         v = d_param(m, -m + 2 * (torch.ceil(i / 2) - 1))
         Ax[p - 1, p + m - 1] = v
         Ay[p - 1, p + m - 1 - (-1) ** i] = -((-1) ** i) * v
 
-        i = torch.arange(1, m)  # m - 1
+        i = torch.arange(1, m, device=device)  # m - 1
         p = (m * (m - 1)) // 2 + i
         v = f_param(m, -m + 2 + 2 * (torch.ceil(i / 2) - 1))
         Ax[p - 1, p + m + 1] = -v
         Ay[p - 1 - (-1) ** i, p + m + 1] = (-1) ** i * v
 
     # Apply sqrt(2) scaling to appropriate indices
-    m = torch.arange(1, N + 1, 2)
+    m = torch.arange(1, N + 1, 2, device=device)
     i = (m * (m + 1)) // 2
     Ax[i - 1, :] *= sqrt2
     Ay[i - 1, :] *= sqrt2
 
-    m = torch.arange(2, N + 1, 2)
+    m = torch.arange(2, N + 1, 2, device=device)
     i = ((m + 1) * (m + 2)) // 2
     Ax[:, i - 1] *= sqrt2
     Ay[:, i - 1] *= sqrt2
@@ -119,64 +134,48 @@ def f_param(l, k):
     return torch.sqrt(((l + k) * (l + k - 1)) / ((2 * l + 1) * (2 * l - 1)))
 
 
-def upwind_flux(N, num_basis, psi, params):
+def compute_upwind_matrices(N, device):
+    Ax, Ay = compute_PN_matrices(N, device=device)
+
+    eig_Ax, Vx = torch.linalg.eigh(Ax)
+    Ax_plus = torch.matmul(torch.matmul(Vx, torch.diag(torch.clamp(eig_Ax, min=0))), Vx.T)
+    Ax_minus = torch.matmul(torch.matmul(Vx, torch.diag(torch.clamp(eig_Ax, max=0))), Vx.T)
+
+    eig_Ay, Vy = torch.linalg.eigh(Ay)
+    Ay_plus = torch.matmul(torch.matmul(Vy, torch.diag(torch.clamp(eig_Ay, min=0))), Vy.T)
+    Ay_minus = torch.matmul(torch.matmul(Vy, torch.diag(torch.clamp(eig_Ay, max=0))), Vy.T)
+
+    threshold = 1e-6
+    Ax_plus = torch.where(torch.abs(Ax_plus) < threshold, torch.zeros_like(Ax_plus), Ax_plus)
+    Ax_minus = torch.where(torch.abs(Ax_minus) < threshold, torch.zeros_like(Ax_minus), Ax_minus)
+    Ay_plus = torch.where(torch.abs(Ay_plus) < threshold, torch.zeros_like(Ay_plus), Ay_plus)
+    Ay_minus = torch.where(torch.abs(Ay_minus) < threshold, torch.zeros_like(Ay_minus), Ay_minus)
+
+    return Ax, Ay, Ax_plus, Ax_minus, Ay_plus, Ay_minus
+
+
+def solver_tensors(filter_order, N, num_basis, device):
+    key = (int(filter_order), int(N), int(num_basis), _device_cache_key(device))
+    cached = _SOLVER_TENSOR_CACHE.get(key)
+    if cached is not None:
+        return cached
+
+    filter_coeffs = filter_coefficients(filter_order, N, num_basis, device=device)
+    upwind_matrices = compute_upwind_matrices(N, device=device)
+    cached = filter_coeffs, upwind_matrices
+    _SOLVER_TENSOR_CACHE[key] = cached
+    return cached
+
+
+def upwind_flux(N, num_basis, psi, params, upwind_matrices):
     IC_idx = params["IC_idx"]
     dx = params["dx"]
     dy = params["dy"]
     num_x = params["num_x"]
     num_y = params["num_y"]
     batch_size = params["batch_size"]
-    device = params["device"]
-
-    Ax, Ay = compute_PN_matrices(N)
-    Ax = Ax.to(device)
-    Ay = Ay.to(device)
-
-    eig_Ax, Vx = torch.linalg.eig(Ax)
-    eig_Ax = torch.real(eig_Ax)
-    Vx = torch.real(Vx)
-    eig_Ax_plus = torch.diag(torch.clamp(eig_Ax, min=0))
-    eig_Ax_minus = torch.diag(torch.clamp(eig_Ax, max=0))
-
-    Ax_plus = torch.matmul(torch.matmul(Vx, eig_Ax_plus), Vx.T)
-    Ax_minus = torch.matmul(torch.matmul(Vx, eig_Ax_minus), Vx.T)
-
-    eig_Ay, Vy = torch.linalg.eig(Ay)
-    eig_Ay = torch.real(eig_Ay)
-    Vy = torch.real(Vy)
-    eig_Ay_plus = torch.diag(torch.clamp(eig_Ay, min=0))
-    eig_Ay_minus = torch.diag(torch.clamp(eig_Ay, max=0))
-
-    Ay_plus = torch.matmul(torch.matmul(Vy, eig_Ay_plus), Vy.T)
-    Ay_minus = torch.matmul(torch.matmul(Vy, eig_Ay_minus), Vy.T)
-
-    # Clean flux matrices
-    threshold = 1e-6
-    Ax_plus = torch.where(
-        torch.abs(Ax_plus) < threshold,
-        torch.zeros_like(Ax_plus, dtype=torch.float32),
-        Ax_plus.to(torch.float32),
-    )
-    Ax_minus = torch.where(
-        torch.abs(Ax_minus) < threshold,
-        torch.zeros_like(Ax_minus, dtype=torch.float32),
-        Ax_minus.to(torch.float32),
-    )
-    Ay_plus = torch.where(
-        torch.abs(Ay_plus) < threshold,
-        torch.zeros_like(Ay_plus, dtype=torch.float32),
-        Ay_plus.to(torch.float32),
-    )
-    Ay_minus = torch.where(
-        torch.abs(Ay_minus) < threshold,
-        torch.zeros_like(Ay_minus, dtype=torch.float32),
-        Ay_minus.to(torch.float32),
-    )
-
-    f_plus  = torch.zeros([batch_size, num_y, num_x, num_basis], device=device)
-    f_minus = torch.zeros([batch_size, num_y, num_x, num_basis], device=device)
-    g_plus  = torch.zeros([batch_size, num_y, num_x, num_basis], device=device)
-    g_minus = torch.zeros([batch_size, num_y, num_x, num_basis], device=device)
+    device = psi.device
+    Ax, Ay, Ax_plus, Ax_minus, Ay_plus, Ay_minus = upwind_matrices
 
     dx_left = torch.zeros([batch_size, num_y, num_x, num_basis], device=device)
     dx_right = torch.zeros([batch_size, num_y, num_x, num_basis], device=device)
@@ -201,34 +200,34 @@ def upwind_flux(N, num_basis, psi, params):
 
     lim_x = minmod(dx_left, dx_right)
     lim_y = minmod(dy_down, dy_up)
-    lim_x_plus  = torch.zeros_like(lim_x)
+    lim_x_plus = torch.zeros_like(lim_x)
     lim_x_minus = torch.zeros_like(lim_x)
-    lim_y_plus  = torch.zeros_like(lim_y)
+    lim_y_plus = torch.zeros_like(lim_y)
     lim_y_minus = torch.zeros_like(lim_y)
     lim_x_plus[:, 1 : num_y - 1, 1 : num_x - 1, :] = (
         lim_x[:, 1 : num_y - 1, 2:num_x, :] - lim_x[:, 1 : num_y - 1, 1 : num_x - 1, :]
     )
     lim_x_minus[:, 1 : num_y - 1, 1 : num_x - 1, :] = (
-          lim_x[:, 1 : num_y - 1, 1 : num_x - 1, :]
+        lim_x[:, 1 : num_y - 1, 1 : num_x - 1, :]
         - lim_x[:, 1 : num_y - 1, 0 : num_x - 2, :]
     )
     lim_y_plus[:, 1 : num_y - 1, 1 : num_x - 1, :] = (
         lim_y[:, 2:num_y, 1 : num_x - 1, :] - lim_y[:, 1 : num_y - 1, 1 : num_x - 1, :]
     )
     lim_y_minus[:, 1 : num_y - 1, 1 : num_x - 1, :] = (
-          lim_y[:, 1 : num_y - 1, 1 : num_x - 1, :]
+        lim_y[:, 1 : num_y - 1, 1 : num_x - 1, :]
         - lim_y[:, 0 : num_y - 2, 1 : num_x - 1, :]
     )
 
-    f_plus  = torch.matmul(dx_right - 0.5 * lim_x_plus, Ax_minus.T)
+    f_plus = torch.matmul(dx_right - 0.5 * lim_x_plus, Ax_minus.T)
     f_minus = torch.matmul(dx_left + 0.5 * lim_x_minus, Ax_plus.T)
-    g_plus  = torch.matmul(dy_up - 0.5 * lim_y_plus, Ay_minus.T)
+    g_plus = torch.matmul(dy_up - 0.5 * lim_y_plus, Ay_minus.T)
     g_minus = torch.matmul(dy_down + 0.5 * lim_y_minus, Ay_plus.T)
 
-    f_plus[:, :, -1, :] = torch.zeros([batch_size, num_y, num_basis], device=device)
-    f_minus[:, :, 0, :] = torch.zeros([batch_size, num_y, num_basis], device=device)
-    g_plus[:, -1, :, :] = torch.zeros([batch_size, num_x, num_basis], device=device)
-    g_minus[:, 0, :, :] = torch.zeros([batch_size, num_x, num_basis], device=device)
+    f_plus[:, :, -1, :] = 0
+    f_minus[:, :, 0, :] = 0
+    g_plus[:, -1, :, :] = 0
+    g_minus[:, 0, :, :] = 0
 
     if IC_idx == 5:
         source_boundary = params["source_boundary"]
@@ -252,7 +251,6 @@ def upwind_flux(N, num_basis, psi, params):
 
     return fluxes, A_dxpsi, A_dypsi
 
-
 def preprocess_features(N, psi, dxpsi, dypsi, scattering, source, params):
     num_x = params["num_x"]
     num_y = params["num_y"]
@@ -264,7 +262,6 @@ def preprocess_features(N, psi, dxpsi, dypsi, scattering, source, params):
     index = 0
 
     for ell in range(N + 1):
-
         num_m = ell + 1
         ell_psi = psi[:, :, :, index : index + num_m]
 
@@ -301,7 +298,7 @@ def NN_normalization(f):
 def timestepping(psi0, filt_switch, NN_model, params, sigs, sigt, N, num_basis, source):
 
     num_x = params["num_x"]
-    num_y = params["num_x"]
+    num_y = params["num_y"]
     num_t = params["num_t"]
     dt = params["dt"]
     batch_size = params["batch_size"]
@@ -309,34 +306,71 @@ def timestepping(psi0, filt_switch, NN_model, params, sigs, sigt, N, num_basis, 
     obj_idx = params["obj_idx"]
     filter_order = params["filter_order"]
 
+    psi0 = psi0.to(device)
+    sigs = sigs.to(device)
+    sigt = sigt.to(device)
+    source = source.to(device)
+
     psi_prev = torch.zeros([batch_size, num_y, num_x, num_basis], device=device)
     psi_prev[:, :, :, 0] = psi0
 
     if obj_idx == 1:
-        psi_out = torch.zeros([batch_size, num_t, num_y, num_x, num_basis])
+        psi_out = torch.zeros(
+            [batch_size, num_t, num_y, num_x, num_basis], device=device
+        )
 
-    filter_coeffs =filter_coefficients(filter_order, N, num_basis)
-    filter_coeffs = filter_coeffs.to(device)
+    filter_coeffs = filter_coefficients(filter_order, N, num_basis, device=device)
+    upwind_matrices = compute_upwind_matrices(N, device=device)
     for k in range(num_t):
         psi1_update = PN_update(
-            psi_prev, N, params, num_basis, sigt, sigs, filt_switch, source, NN_model, filter_coeffs
+            psi_prev,
+            N,
+            params,
+            num_basis,
+            sigt,
+            sigs,
+            filt_switch,
+            source,
+            NN_model,
+            filter_coeffs,
+            upwind_matrices,
         )[0]
         psi1 = psi_prev + dt * psi1_update
         psi2_update, sigf = PN_update(
-            psi1, N, params, num_basis, sigt, sigs, filt_switch, source, NN_model, filter_coeffs
+            psi1,
+            N,
+            params,
+            num_basis,
+            sigt,
+            sigs,
+            filt_switch,
+            source,
+            NN_model,
+            filter_coeffs,
+            upwind_matrices,
         )
         psi = psi_prev + 0.5 * dt * (psi1_update + psi2_update)
         psi_prev = psi
 
         if obj_idx == 1:
-            psi_out[:,k,:,:,:] = psi
+            psi_out[:, k, :, :, :] = psi
     if obj_idx == 0:
         psi_out = psi
     return psi_out, sigf[0, :, :]
 
 
 def PN_update(
-    psi_prev, N, params, num_basis, sigt, sigs, filt_switch, source, NN_model, filter_coeffs
+    psi_prev,
+    N,
+    params,
+    num_basis,
+    sigt,
+    sigs,
+    filt_switch,
+    source,
+    NN_model,
+    filter_coeffs,
+    upwind_matrices,
 ):
 
     num_x = params["num_x"]
@@ -348,21 +382,19 @@ def PN_update(
     device = params["device"]
     filter_type = params["filter_type"]
 
-
-
-    fluxes, A_dxpsi, A_dypsi = upwind_flux(N, num_basis, psi_prev, params)
+    fluxes, A_dxpsi, A_dypsi = upwind_flux(
+        N, num_basis, psi_prev, params, upwind_matrices
+    )
 
     if tt_flag == 0:
-        sigt_psi   = sigt[:, None, None, None] * psi_prev
-        scattering = sigs[:, None, None] ** psi_prev[:, :, :, 0]
+        sigt_psi = sigt[:, None, None, None] * psi_prev
+        scattering = sigs[:, None, None] * psi_prev[:, :, :, 0]
     elif tt_flag == 1:
         sigt_psi = sigt[:, :, :, None] * psi_prev
         scattering = sigs * psi_prev[:, :, :, 0]
 
     sigf = torch.zeros([batch_size, num_y, num_x], device=device)
     psi_update = torch.zeros([batch_size, num_y, num_x, num_basis], device=device)
-    inputs = torch.zeros([batch_size, num_y, num_x, num_features], device=device)
-
     if filt_switch == 1:
         if filter_type == 0:
             inputs = preprocess_features(
@@ -371,16 +403,16 @@ def PN_update(
             sigf = NN_model(inputs).squeeze(-1)
         if filter_type == 1:
             sigf0 = NN_model()
-            sigf = sigf0*torch.ones(batch_size, num_y, num_x, device = sigf0.device)
+            sigf = sigf0 * torch.ones(batch_size, num_y, num_x, device=sigf0.device)
         if filter_type == 2:
             sigf0 = NN_model
-            sigf = sigf0 * torch.ones(batch_size, num_y, num_x)
+            sigf = sigf0 * torch.ones(batch_size, num_y, num_x, device=device)
 
     psi_update = -fluxes - sigt_psi
     psi_update[:, :, :, 0] = psi_update[:, :, :, 0] + scattering + source
 
     if filt_switch == 1:
-        sigf_psi = sigf[:, :, :, None]*psi_prev*filter_coeffs
+        sigf_psi = sigf[:, :, :, None] * psi_prev * filter_coeffs
         psi_update = psi_update - sigf_psi
 
     if IC_idx != 5:
@@ -393,20 +425,21 @@ def PN_update(
     psi_update[:, 0, -1, :] = 0.5 * (psi_update[:, 0, -2, :] + psi_update[:, 1, -1, :])
     psi_update[:, -1, 0, :] = 0.5 * (psi_update[:, -2, 0, :] + psi_update[:, -1, 1, :])
     psi_update[:, -1, -1, :] = 0.5 * (
-    psi_update[:, -2, -1, :] + psi_update[:, -1, -2, :]
+        psi_update[:, -2, -1, :] + psi_update[:, -1, -2, :]
     )
 
     return psi_update, sigf
 
 
 def compute_cell_average(f, num_x, num_y, num_funcs):
-    average = torch.zeros(num_funcs, num_x, num_y, dtype=torch.float32)
+    average = torch.zeros(num_funcs, num_y, num_x, dtype=f.dtype, device=f.device)
     for l in range(0, num_y):
         for m in range(0, num_x):
             average[:, l, m] = 0.25 * (
                 f[:, l, m] + f[:, l, m + 1] + f[:, l + 1, m] + f[:, l + 1, m + 1]
             )
     return average
+
 
 def rotation_test(psi):
     rot_error = np.zeros(2)

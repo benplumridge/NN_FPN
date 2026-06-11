@@ -13,12 +13,12 @@ import os
 
 # Add src to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
-from params_common import params
+from params_common import params, resolve_device
 from test_model import testing
 
 params["batch_size"] = 1
 params["tt_flag"] = 1
-params["device"] = "cpu"
+params["device"] = resolve_device(params.get("device"))
 params["IC_idx"] = IC_idx
 
 testing(params)

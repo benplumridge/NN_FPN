@@ -4,10 +4,18 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 import numpy as np
 from funcs_common import SimpleNN, obj_func, timestepping, compute_cell_average
-from IC import gaussian_testing, heaviside, bump, disc_source, vanishing_cs, disc_cs, reeds
+from IC import (
+    gaussian_testing,
+    heaviside,
+    bump,
+    disc_source,
+    vanishing_cs,
+    disc_cs,
+    reeds,
+)
 
 
-def testing(params, model_idx):
+def testing(params, model_idx=0):
 
     num_x = params["num_x"]
     num_t = params["num_t"]
@@ -23,19 +31,19 @@ def testing(params, model_idx):
     device = params["device"]
     IC_idx = params["IC_idx"]
     filter_type = params["filter_type"]
-    show_plot   = params["show_plot"]
-
+    show_plot = params["show_plot"]
 
     model_filename = load_model(N, model_idx, filter_type)
-    NN_model = torch.load(model_filename, map_location=torch.device(device), weights_only = False)
+    NN_model = torch.load(
+        model_filename, map_location=torch.device(device), weights_only=False
+    )
     NN_model.to(device)
     NN_model.eval()
 
-
-        # for name, param in NN_model.named_parameters():
-        #     if 'weight' in name and param.requires_grad:
-        #         norm = torch.norm(param).item()
-        #         print(f"Layer: {name} | Weight norm: {norm:.4f}")
+    # for name, param in NN_model.named_parameters():
+    #     if 'weight' in name and param.requires_grad:
+    #         norm = torch.norm(param).item()
+    #         print(f"Layer: {name} | Weight norm: {norm:.4f}")
 
     # elif filter_type == 3:
     #     if N == 3:
@@ -105,7 +113,16 @@ def testing(params, model_idx):
         )[0]
 
         FPN, sigf = timestepping(
-            psi0, filter_type, NN_model, params, sigs, sigt, N, source, batch_size, device
+            psi0,
+            filter_type,
+            NN_model,
+            params,
+            sigs,
+            sigt,
+            N,
+            source,
+            batch_size,
+            device,
         )
 
         error0 = torch.sqrt(
@@ -142,28 +159,24 @@ def testing(params, model_idx):
         flux_error_reduction,
     )
 
-
     sigf = sigf.detach().cpu().numpy()
     sigf = sigf[0, :]
-    exact = exact[0, :, :].detach().numpy()
-    PN    = PN[0, :, :].detach().numpy()
-    FPN   = FPN[0, :, :].detach().numpy()
+    exact = exact[0, :, :].detach().cpu().numpy()
+    PN = PN[0, :, :].detach().cpu().numpy()
+    FPN = FPN[0, :, :].detach().cpu().numpy()
 
     exact_flux = np.sqrt(2) * exact[:, 0]
-    PN_flux    = np.sqrt(2) * PN[:, 0]
-    FPN_flux   = np.sqrt(2) * FPN[:, 0]
+    PN_flux = np.sqrt(2) * PN[:, 0]
+    FPN_flux = np.sqrt(2) * FPN[:, 0]
 
     import os
-    os.makedirs("results", exist_ok=True)
-    os.makedirs("results/Gaussian", exist_ok=True)
-    os.makedirs("results/Vanishing_Cross_Section", exist_ok=True)
-    os.makedirs("results/Discontinuous_Cross_Section", exist_ok=True)
-    os.makedirs("results/Reeds", exist_ok=True)
 
+    output_dir = os.path.join("results", ic_type)
+    os.makedirs(output_dir, exist_ok=True)
 
     plt.rcParams.update({"font.size": 16})
-    
-    fig, ax1 = plt.subplots(figsize=(6, 5), constrained_layout = True)
+
+    fig, ax1 = plt.subplots(figsize=(6, 5), constrained_layout=True)
 
     # Plot on the first y-axis (left side)
     (line1,) = ax1.plot(x, exact_flux, label="Exact", color="r")
@@ -173,8 +186,8 @@ def testing(params, model_idx):
     # Set labels and limits
     ax1.set_xlim([xl, xr])
     # ax1.set_ylabel('Scalar Flux')
-    ax1.set_xlabel('z', fontsize=18)
-    
+    ax1.set_xlabel("z", fontsize=18)
+
     # Create a second y-axis that shares the same x-axis
     ax2 = ax1.twinx()
 
@@ -183,19 +196,18 @@ def testing(params, model_idx):
     lines = [line1, line2, line3, line4]  # Combine line objects
     labels = [line.get_label() for line in lines]  # Get labels for the lines
     # ax1.legend(lines, labels, loc='upper center', ncol=4, bbox_to_anchor=(0.5, 1.15))
-    
+
     if show_plot == 1:
         plt.show()
 
-    if IC_idx ==6:
+    if IC_idx == 6:
         T_int = int(T)
-    else: 
-        T_int = int(10*T)
+    else:
+        T_int = int(10 * T)
     # format T with a fixed number of decimals (say 3)
-    filename = f"results/{ic_type}/P{N}_t{T_int}.png"
+    filename = os.path.join(output_dir, f"P{N}_t{T_int}.png")
 
     plt.savefig(filename, bbox_inches="tight", dpi=300)
-
 
     # fig, ax = plt.subplots()  # Create figure and axes
 
@@ -216,9 +228,9 @@ def load_model(N, model_idx, filter_type):
     valid_N = {3, 7, 9}
     if N not in valid_N:
         raise ValueError(f"Invalid value for N: {N}. Expected one of {valid_N}.")
-    if filter_type in (1,2):
+    if filter_type in (1, 2):
         filename = f"trained_models/model_N{N}_{model_idx}.pth"
     elif filter_type == 3:
-        filename = f"trained_models_const/model_N{N}_{model_idx}.pth"   
+        filename = f"trained_models_const/model_N{N}_{model_idx}.pth"
 
     return filename

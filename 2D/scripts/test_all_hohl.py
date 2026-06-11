@@ -3,7 +3,7 @@ import os
 import torch
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
-from params_common import params
+from params_common import params, resolve_device
 from test_model import testing
 
 
@@ -19,7 +19,7 @@ from test_model import testing
 
 params["batch_size"] = 1
 params["tt_flag"] = 1
-params["device"] = "cpu"
+params["device"] = resolve_device(params.get("device"))
 
 N_exact = 37
 filter_order = 4
@@ -59,11 +59,9 @@ Ts = [1.5, 3.0]
 results = {}
 
 for T in Ts:
-
     results[(params["IC_idx"], T)] = {}
 
     for N in Ns:
-
         num_features = 2 * (N + 1) + 2
         num_hidden = num_features // 2
         num_basis = (N + 1) * (N + 2) // 2
@@ -83,13 +81,11 @@ for T in Ts:
 
 if filter_type == 0:
     file_name = "error_reduction_hohl_NN"
-elif filter_type in {1,2}:
+elif filter_type in {1, 2}:
     file_name = "error_reduction_hohl_const"
 
 with open(file_name, "w") as f:
-
     for (IC_idx, T), data in results.items():
-
         f.write("=" * 90 + "\n")
         f.write(f"Test Problem IC_idx = {IC_idx}, Final Time T = {T}\n")
         f.write("=" * 90 + "\n\n")
@@ -98,10 +94,7 @@ with open(file_name, "w") as f:
         header = ""
 
         for N in Ns:
-            header += (
-                f"{f'N = {N} Error':>20}"
-                f"{f'N = {N} Reduction':>25}"
-            )
+            header += f"{f'N = {N} Error':>20}{f'N = {N} Reduction':>25}"
 
         f.write(header + "\n")
         f.write("-" * len(header) + "\n")
@@ -110,12 +103,8 @@ with open(file_name, "w") as f:
         row = ""
 
         for N in Ns:
-
             error, reduction = data[N]
 
-            row += (
-                f"{error:>20.4f}"
-                f"{reduction:>25.4f}"
-            )
+            row += f"{error:>20.4f}{reduction:>25.4f}"
 
         f.write(row + "\n\n\n")
