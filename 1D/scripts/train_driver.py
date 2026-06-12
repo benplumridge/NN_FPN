@@ -11,7 +11,12 @@ from numpy import savetxt
 
 # Add src to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
-from params_common import model_tag_from_params, params, resolve_device, tagged_model_path
+from params_common import (
+    model_tag_from_params,
+    params,
+    resolve_device,
+    tagged_model_path,
+)
 from train_model import training
 
 

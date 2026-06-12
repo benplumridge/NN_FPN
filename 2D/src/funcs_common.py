@@ -203,18 +203,34 @@ def compute_upwind_matrices(N, device):
     Ax, Ay = compute_PN_matrices(N, device=device)
 
     eig_Ax, Vx = torch.linalg.eigh(Ax)
-    Ax_plus = torch.matmul(torch.matmul(Vx, torch.diag(torch.clamp(eig_Ax, min=0))), Vx.T)
-    Ax_minus = torch.matmul(torch.matmul(Vx, torch.diag(torch.clamp(eig_Ax, max=0))), Vx.T)
+    Ax_plus = torch.matmul(
+        torch.matmul(Vx, torch.diag(torch.clamp(eig_Ax, min=0))), Vx.T
+    )
+    Ax_minus = torch.matmul(
+        torch.matmul(Vx, torch.diag(torch.clamp(eig_Ax, max=0))), Vx.T
+    )
 
     eig_Ay, Vy = torch.linalg.eigh(Ay)
-    Ay_plus = torch.matmul(torch.matmul(Vy, torch.diag(torch.clamp(eig_Ay, min=0))), Vy.T)
-    Ay_minus = torch.matmul(torch.matmul(Vy, torch.diag(torch.clamp(eig_Ay, max=0))), Vy.T)
+    Ay_plus = torch.matmul(
+        torch.matmul(Vy, torch.diag(torch.clamp(eig_Ay, min=0))), Vy.T
+    )
+    Ay_minus = torch.matmul(
+        torch.matmul(Vy, torch.diag(torch.clamp(eig_Ay, max=0))), Vy.T
+    )
 
     threshold = 1e-6
-    Ax_plus = torch.where(torch.abs(Ax_plus) < threshold, torch.zeros_like(Ax_plus), Ax_plus)
-    Ax_minus = torch.where(torch.abs(Ax_minus) < threshold, torch.zeros_like(Ax_minus), Ax_minus)
-    Ay_plus = torch.where(torch.abs(Ay_plus) < threshold, torch.zeros_like(Ay_plus), Ay_plus)
-    Ay_minus = torch.where(torch.abs(Ay_minus) < threshold, torch.zeros_like(Ay_minus), Ay_minus)
+    Ax_plus = torch.where(
+        torch.abs(Ax_plus) < threshold, torch.zeros_like(Ax_plus), Ax_plus
+    )
+    Ax_minus = torch.where(
+        torch.abs(Ax_minus) < threshold, torch.zeros_like(Ax_minus), Ax_minus
+    )
+    Ay_plus = torch.where(
+        torch.abs(Ay_plus) < threshold, torch.zeros_like(Ay_plus), Ay_plus
+    )
+    Ay_minus = torch.where(
+        torch.abs(Ay_minus) < threshold, torch.zeros_like(Ay_minus), Ay_minus
+    )
 
     return Ax, Ay, Ax_plus, Ax_minus, Ay_plus, Ay_minus
 
@@ -316,6 +332,7 @@ def upwind_flux(N, num_basis, psi, params, upwind_matrices):
 
     return fluxes, A_dxpsi, A_dypsi
 
+
 def _feature_eps(params):
     return float(params.get("feature_eps", params.get("log_feature_eps", 1e-8)))
 
@@ -367,12 +384,15 @@ def _normalize_feature_tensor(feature, params, mode=None):
     if mode in {"none", "identity", "raw"}:
         return feature
     if mode in {"global", "training", "train"}:
-        mean = _stat_tensor(params.get("feature_global_mean"), feature, "feature_global_mean")
-        std = _stat_tensor(params.get("feature_global_std"), feature, "feature_global_std")
+        mean = _stat_tensor(
+            params.get("feature_global_mean"), feature, "feature_global_mean"
+        )
+        std = _stat_tensor(
+            params.get("feature_global_std"), feature, "feature_global_std"
+        )
         return (feature - mean) / (std + _feature_eps(params))
     raise ValueError(
-        f"Unsupported feature_normalization={mode!r}. "
-        "Expected sample, none, or global."
+        f"Unsupported feature_normalization={mode!r}. Expected sample, none, or global."
     )
 
 
@@ -386,7 +406,9 @@ def _expand_2d_material_field(value, params):
     elif value.ndim == 4 and value.shape[-1] == 1:
         value = value[..., 0]
     if value.ndim != 3:
-        raise ValueError(f"Expected 2D material field with shape [batch, y, x]; got {value.shape}")
+        raise ValueError(
+            f"Expected 2D material field with shape [batch, y, x]; got {value.shape}"
+        )
     if value.shape[1] == 1 and value.shape[2] == 1:
         value = value.expand(-1, int(params["num_y"]), int(params["num_x"]))
     return value[:, :, :, None]
@@ -397,7 +419,11 @@ def _material_feature_tensor(sigs, sigt, params, mode=None):
     sigt = _expand_2d_material_field(sigt, params)
     siga = torch.clamp(sigt - sigs, min=0.0)
 
-    features = [_log_magnitude(sigs, params), _log_magnitude(sigt, params), _log_magnitude(siga, params)]
+    features = [
+        _log_magnitude(sigs, params),
+        _log_magnitude(sigt, params),
+        _log_magnitude(siga, params),
+    ]
     if params.get("include_material_ratios", False):
         denom = torch.clamp(torch.abs(sigt), min=_feature_eps(params))
         features.extend((sigs / denom, siga / denom))
@@ -431,7 +457,9 @@ def _invariant_norm_features(N, psi, dxpsi, dypsi, params):
     return psi_norms, dpsi_norms
 
 
-def preprocess_features(N, psi, dxpsi, dypsi, scattering, source, params, sigs=None, sigt=None):
+def preprocess_features(
+    N, psi, dxpsi, dypsi, scattering, source, params, sigs=None, sigt=None
+):
     variant = feature_variant(params)
     psi_norms, dpsi_norms = _invariant_norm_features(N, psi, dxpsi, dypsi, params)
     scattering_field = scattering[:, :, :, None]
@@ -572,9 +600,13 @@ def timestepping(
     if return_filter_stats:
         if filter_strength_rollout_max is None:
             filter_strength_rollout_max = torch.zeros((), device=device)
-        return psi_out, sigf[0, :, :], {
-            "filter_strength_rollout_max": filter_strength_rollout_max,
-        }
+        return (
+            psi_out,
+            sigf[0, :, :],
+            {
+                "filter_strength_rollout_max": filter_strength_rollout_max,
+            },
+        )
     return psi_out, sigf[0, :, :]
 
 

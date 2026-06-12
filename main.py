@@ -327,7 +327,9 @@ def finalize_results_dir(scratch, output, dry_run):
 
 
 def _enabled_1d_summary_specs(dim_cfg):
-    scripts = {str(script).replace("\\", "/") for script in simulation_scripts("1d", dim_cfg)}
+    scripts = {
+        str(script).replace("\\", "/") for script in simulation_scripts("1d", dim_cfg)
+    }
     specs = []
     if "scripts/test_iters.py" in scripts:
         specs.append(("error_reduction_table.csv", "error_reduction_table_const.csv"))
@@ -360,7 +362,9 @@ def _latex_cell(row, best_value):
 def _terminal_cell(row, best_value):
     if row is None:
         return "n/a"
-    marker = "*" if best_value is not None and abs(row["mean"] - best_value) < 1e-12 else ""
+    marker = (
+        "*" if best_value is not None and abs(row["mean"] - best_value) < 1e-12 else ""
+    )
     return f"{row['mean']:.4f}+/-{row['std']:.4f}{marker}"
 
 

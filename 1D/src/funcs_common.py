@@ -239,9 +239,13 @@ def timestepping(
     if return_filter_stats:
         if filter_strength_rollout_max is None:
             filter_strength_rollout_max = torch.zeros((), device=device)
-        return y_out, sigf, {
-            "filter_strength_rollout_max": filter_strength_rollout_max,
-        }
+        return (
+            y_out,
+            sigf,
+            {
+                "filter_strength_rollout_max": filter_strength_rollout_max,
+            },
+        )
     return y_out, sigf
 
 
@@ -393,12 +397,15 @@ def _normalize_feature_tensor(feature, params, mode=None):
     if mode in {"none", "identity", "raw"}:
         return feature
     if mode in {"global", "training", "train"}:
-        mean = _stat_tensor(params.get("feature_global_mean"), feature, "feature_global_mean")
-        std = _stat_tensor(params.get("feature_global_std"), feature, "feature_global_std")
+        mean = _stat_tensor(
+            params.get("feature_global_mean"), feature, "feature_global_mean"
+        )
+        std = _stat_tensor(
+            params.get("feature_global_std"), feature, "feature_global_std"
+        )
         return (feature - mean) / (std + _feature_eps(params))
     raise ValueError(
-        f"Unsupported feature_normalization={mode!r}. "
-        "Expected sample, none, or global."
+        f"Unsupported feature_normalization={mode!r}. Expected sample, none, or global."
     )
 
 
@@ -412,7 +419,9 @@ def _expand_1d_material_field(value, params):
     elif value.ndim == 2:
         value = value[:, :, None]
     if value.ndim != 3 or value.shape[-1] != 1:
-        raise ValueError(f"Expected 1D material field with trailing singleton dim; got {value.shape}")
+        raise ValueError(
+            f"Expected 1D material field with trailing singleton dim; got {value.shape}"
+        )
     if value.shape[1] == 1:
         value = value.expand(-1, int(params["num_x"]), -1)
     return value
@@ -423,7 +432,11 @@ def _material_feature_tensor(sigs, sigt, params, mode=None):
     sigt = _expand_1d_material_field(sigt, params)
     siga = torch.clamp(sigt - sigs, min=0.0)
 
-    features = [_log_magnitude(sigs, params), _log_magnitude(sigt, params), _log_magnitude(siga, params)]
+    features = [
+        _log_magnitude(sigs, params),
+        _log_magnitude(sigt, params),
+        _log_magnitude(siga, params),
+    ]
     if params.get("include_material_ratios", False):
         denom = torch.clamp(torch.abs(sigt), min=_feature_eps(params))
         features.extend((sigs / denom, siga / denom))
@@ -470,10 +483,15 @@ def _apply_1d_ablation(groups, params):
     if ablation_idx not in selections:
         raise ValueError(f"Unsupported ablation_idx={ablation_idx}")
     selected = selections[ablation_idx]
-    return tuple(group if idx in selected else torch.zeros_like(group) for idx, group in enumerate(groups))
+    return tuple(
+        group if idx in selected else torch.zeros_like(group)
+        for idx, group in enumerate(groups)
+    )
 
 
-def preprocess_features(A_Dy, sigt_y, scattering, source, filter_type, params, sigs=None, sigt=None):
+def preprocess_features(
+    A_Dy, sigt_y, scattering, source, filter_type, params, sigs=None, sigt=None
+):
     variant = feature_variant(params)
     base_groups = _apply_1d_ablation(
         _legacy_feature_groups_1d(A_Dy, sigt_y, scattering, source, filter_type), params
@@ -482,7 +500,9 @@ def preprocess_features(A_Dy, sigt_y, scattering, source, filter_type, params, s
     log_mode = "none" if variant == "no_norm_log" else None
     raw_groups = (A_Dy, sigt_y, scattering, source)
     log_groups = _apply_1d_ablation(
-        tuple(_log_feature_tensor(group, params, mode=log_mode) for group in raw_groups),
+        tuple(
+            _log_feature_tensor(group, params, mode=log_mode) for group in raw_groups
+        ),
         params,
     )
 

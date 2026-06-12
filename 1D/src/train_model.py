@@ -93,7 +93,9 @@ def _set_epoch_learning_rate(opt, base_lr, epoch, num_epochs, params):
 
 
 def _training_data_mode(params):
-    mode = str(params.get("training_data", params.get("training_setup", "paper"))).lower()
+    mode = str(
+        params.get("training_data", params.get("training_setup", "paper"))
+    ).lower()
     aliases = {
         "paper": "paper",
         "current": "paper",
@@ -161,8 +163,8 @@ def _fill_initial_condition(psi0_row, source_row, x_edges, family, device):
         psi0_row[_interval_mask(x_edges, center, half_width)] = _rand_uniform(
             0.5, 2.0, device
         )
-        source_row[torch.abs(x_edges) > _rand_uniform(0.65, 0.85, device)] = _rand_uniform(
-            0.5, 5.0, device
+        source_row[torch.abs(x_edges) > _rand_uniform(0.65, 0.85, device)] = (
+            _rand_uniform(0.5, 5.0, device)
         )
         source_row[_interval_mask(x_edges, center, half_width)] += _rand_uniform(
             0.25, 2.0, device
@@ -185,7 +187,9 @@ def _fill_initial_condition(psi0_row, source_row, x_edges, family, device):
         )
 
 
-def _fill_cross_sections(sigs_row, sigt_row, source_row, x_edges, case, sigs_max, device):
+def _fill_cross_sections(
+    sigs_row, sigt_row, source_row, x_edges, case, sigs_max, device
+):
     if case == 0:
         sigs0 = torch.rand((), device=device) * sigs_max
         siga0 = (sigs_max - sigs0) * torch.rand((), device=device)
@@ -202,7 +206,10 @@ def _fill_cross_sections(sigs_row, sigt_row, source_row, x_edges, case, sigs_max
         high = _rand_uniform(0.5, 10.0, device)
         low = _rand_uniform(0.0, 0.25, device)
         sigs_row[:] = high
-        for center in (-_rand_uniform(0.3, 0.7, device), _rand_uniform(0.3, 0.7, device)):
+        for center in (
+            -_rand_uniform(0.3, 0.7, device),
+            _rand_uniform(0.3, 0.7, device),
+        ):
             half_width = _rand_uniform(0.05, 0.2, device)
             sigs_row[_interval_mask(x_edges, center, half_width)] = low
         sigt_row[:] = sigs_row + _rand_uniform(0.0, 1.0, device)
@@ -259,9 +266,7 @@ def _sample_augmented_training_batch(params, device):
     for b in range(batch_size):
         family = int(torch.randint(0, 7, ()).item())
         material_case = int(torch.randint(0, 6, ()).item())
-        _fill_initial_condition(
-            psi0_edges[b], source_edges[b], x_edges, family, device
-        )
+        _fill_initial_condition(psi0_edges[b], source_edges[b], x_edges, family, device)
         _fill_cross_sections(
             sigs_edges[b],
             sigt_edges[b],
@@ -373,10 +378,14 @@ def training(params):
             round(batch_size / num_IC), round(2 * batch_size / num_IC), device=device
         )
         reg3 = torch.arange(
-            round(2 * batch_size / num_IC), round(3 * batch_size / num_IC), device=device
+            round(2 * batch_size / num_IC),
+            round(3 * batch_size / num_IC),
+            device=device,
         )
         reg4 = torch.arange(
-            round(3 * batch_size / num_IC), round(4 * batch_size / num_IC), device=device
+            round(3 * batch_size / num_IC),
+            round(4 * batch_size / num_IC),
+            device=device,
         )
 
         psi0_edges[reg1, :] = gaussian_training(num_x, x_edges)[0].to(device)

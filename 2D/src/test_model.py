@@ -133,7 +133,9 @@ def testing(params):
 
         if IC_idx == 0:
             exact_np = np.load("exact_solns/linesource_37.npy")
-            exact = torch.zeros(batch_size, num_y, num_x, num_basis_exact, device=device)
+            exact = torch.zeros(
+                batch_size, num_y, num_x, num_basis_exact, device=device
+            )
             exact[0, :, :, :] = torch.from_numpy(exact_np).to(device)
 
         elif IC_idx == 5:
@@ -141,7 +143,9 @@ def testing(params):
                 exact_np = np.load("exact_solns/hohlraum_37_T15.npy")
             elif T == 3.0:
                 exact_np = np.load("exact_solns/hohlraum_37_T30.npy")
-            exact = torch.zeros(batch_size, num_y, num_x, num_basis_exact, device=device)
+            exact = torch.zeros(
+                batch_size, num_y, num_x, num_basis_exact, device=device
+            )
             exact[0, :, :, :] = torch.from_numpy(exact_np).to(device)
 
         elif IC_idx == 6:
@@ -149,7 +153,9 @@ def testing(params):
                 exact_np = np.load("exact_solns/lattice_37_T16.npy")
             elif T == 3.2:
                 exact_np = np.load("exact_solns/lattice_37_T32.npy")
-            exact = torch.zeros(batch_size, num_y, num_x, num_basis_exact, device=device)
+            exact = torch.zeros(
+                batch_size, num_y, num_x, num_basis_exact, device=device
+            )
             exact[0, :, :, :] = torch.from_numpy(exact_np).to(device)
 
         else:

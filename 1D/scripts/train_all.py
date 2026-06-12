@@ -11,7 +11,12 @@ from numpy import savetxt
 
 # Add src to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
-from params_common import model_tag_from_params, params, resolve_device, tagged_model_path
+from params_common import (
+    model_tag_from_params,
+    params,
+    resolve_device,
+    tagged_model_path,
+)
 from train_model import training
 
 
@@ -47,6 +52,10 @@ for j in range(num_trains):
             params["num_features"] = 2 * N + 4
         NN_model = training(params)
         if filter_type in (1, 2):
-            torch.save(NN_model, tagged_model_path(N, j, filter_type, params["model_tag"]))
+            torch.save(
+                NN_model, tagged_model_path(N, j, filter_type, params["model_tag"])
+            )
         if filter_type == 3:
-            torch.save(NN_model, tagged_model_path(N, j, filter_type, params["model_tag"]))
+            torch.save(
+                NN_model, tagged_model_path(N, j, filter_type, params["model_tag"])
+            )

@@ -103,7 +103,9 @@ def copy_outputs(N):
         for ansatz, filename in filenames.items():
             source = ONE_D / filename
             if not source.exists():
-                raise FileNotFoundError(f"Expected output CSV was not written: {source}")
+                raise FileNotFoundError(
+                    f"Expected output CSV was not written: {source}"
+                )
             dest = OUT_DIR / f"N{N}_{ansatz}_{suffix}.csv"
             shutil.copy2(source, dest)
             copied.append(dest)
@@ -138,7 +140,9 @@ def _latex_cell(row, best_value):
 def _terminal_cell(row, best_value):
     if row is None:
         return "n/a"
-    marker = "*" if best_value is not None and abs(row["mean"] - best_value) < 1e-12 else ""
+    marker = (
+        "*" if best_value is not None and abs(row["mean"] - best_value) < 1e-12 else ""
+    )
     return f"{row['mean']:.4f}+/-{row['std']:.4f}{marker}"
 
 
@@ -172,7 +176,8 @@ def print_latex_table(table_key, times, Ns, data):
     print(r"\begin{tabular}{c c c c c c c c}")
     print(
         r"   & \multicolumn{3}{c}{Neural Network ($r_N^{\text{nn}}$)} "
-        r"& \phantom{abc} & \multicolumn{3}{c}{Constant ($r_N^{\text{const}}$)} \\")
+        r"& \phantom{abc} & \multicolumn{3}{c}{Constant ($r_N^{\text{const}}$)} \\"
+    )
     print(r"        \cmidrule{2-4} \cmidrule{6-8}")
     print(r"        $\tf$  & $N=3$ & $N=7$ & $N=9$ & & $N=3$ & $N=7$ & $N=9$ \\")
     print(r"        \midrule")
@@ -191,7 +196,8 @@ def print_latex_table(table_key, times, Ns, data):
             + " & ".join(nn_cells)
             + " & & "
             + " & ".join(const_cells)
-            + r" \\")
+            + r" \\"
+        )
     print(r"        \bottomrule")
     print(r"\end{tabular}")
 
@@ -245,9 +251,21 @@ def parse_args():
         description="Train NN and constant best-sweep 1D settings 10 times and print paper tables."
     )
     parser.add_argument("--num-replicates", type=int, default=10)
-    parser.add_argument("--only-simulate", action="store_true", help="Skip training and only rerun simulations.")
-    parser.add_argument("--only-tables", action="store_true", help="Only reprint tables from copied CSVs.")
-    parser.add_argument("--enable-wandb", action="store_true", help="Keep W&B enabled in generated configs.")
+    parser.add_argument(
+        "--only-simulate",
+        action="store_true",
+        help="Skip training and only rerun simulations.",
+    )
+    parser.add_argument(
+        "--only-tables",
+        action="store_true",
+        help="Only reprint tables from copied CSVs.",
+    )
+    parser.add_argument(
+        "--enable-wandb",
+        action="store_true",
+        help="Keep W&B enabled in generated configs.",
+    )
     return parser.parse_args()
 
 
@@ -261,7 +279,9 @@ def main():
 
     generated = []
     for N, source in BEST_CONFIGS.items():
-        cfg = derived_config(N, source, args.num_replicates, disable_wandb=not args.enable_wandb)
+        cfg = derived_config(
+            N, source, args.num_replicates, disable_wandb=not args.enable_wandb
+        )
         path = OUT_DIR / f"best_sweep_N{N}_10x.yaml"
         write_yaml(path, cfg)
         generated.append((N, path))
@@ -281,14 +301,19 @@ def main():
             "--phase",
             phase,
         ]
-        print(f"==> N={N}: running {phase}; log={log_path.relative_to(ROOT)}", flush=True)
+        print(
+            f"==> N={N}: running {phase}; log={log_path.relative_to(ROOT)}", flush=True
+        )
         try:
             run_command(command, log_path)
         except subprocess.CalledProcessError as exc:
             print(f"N={N} failed. See {log_path.relative_to(ROOT)}", file=sys.stderr)
             raise SystemExit(exc.returncode) from exc
         copied = copy_outputs(N)
-        print("    copied " + ", ".join(str(path.relative_to(ROOT)) for path in copied), flush=True)
+        print(
+            "    copied " + ", ".join(str(path.relative_to(ROOT)) for path in copied),
+            flush=True,
+        )
 
     table_buffer = io.StringIO()
     with redirect_stdout(table_buffer):

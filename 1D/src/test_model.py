@@ -189,18 +189,10 @@ def testing(params, model_idx=0):
         _ensure_positive_finite("total exact norm", total_den)
         _ensure_positive_finite("flux exact norm", flux_den)
 
-        error0 = torch.sqrt(
-            obj_func(PN - exact[:, :, 0 : N + 1]) / total_den
-        )
-        errorf = torch.sqrt(
-            obj_func(FPN - exact[:, :, 0 : N + 1]) / total_den
-        )
-        flux_err0 = torch.sqrt(
-            obj_func(PN[:, :, 0] - exact[:, :, 0]) / flux_den
-        )
-        flux_errf = torch.sqrt(
-            obj_func(FPN[:, :, 0] - exact[:, :, 0]) / flux_den
-        )
+        error0 = torch.sqrt(obj_func(PN - exact[:, :, 0 : N + 1]) / total_den)
+        errorf = torch.sqrt(obj_func(FPN - exact[:, :, 0 : N + 1]) / total_den)
+        flux_err0 = torch.sqrt(obj_func(PN[:, :, 0] - exact[:, :, 0]) / flux_den)
+        flux_errf = torch.sqrt(obj_func(FPN[:, :, 0] - exact[:, :, 0]) / flux_den)
 
         _ensure_positive_finite(f"P{N} total error", error0)
         _ensure_finite(f"FP{N} total error", errorf)

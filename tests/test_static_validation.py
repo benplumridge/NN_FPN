@@ -69,19 +69,35 @@ class StaticValidationTests(unittest.TestCase):
         common_source = read_source("1D/src/params_common.py")
         self.assertIn("def model_tag_from_params", common_source)
         self.assertIn("def tagged_model_path", common_source)
-        self.assertIn('"trained_models/model_{tag}_N{N}_{model_idx}.pth"', common_source)
-        self.assertIn('"trained_models_const/model_{tag}_N{N}_{model_idx}.pth"', common_source)
+        self.assertIn(
+            '"trained_models/model_{tag}_N{N}_{model_idx}.pth"', common_source
+        )
+        self.assertIn(
+            '"trained_models_const/model_{tag}_N{N}_{model_idx}.pth"', common_source
+        )
 
         main_source = read_source("main.py")
-        self.assertIn('tagged_model_path(N, j, filter_type, params["model_tag"])', main_source)
-        self.assertIn('params["model_tag"] = model_tag_from_params(params)', main_source)
+        self.assertIn(
+            'tagged_model_path(N, j, filter_type, params["model_tag"])', main_source
+        )
+        self.assertIn(
+            'params["model_tag"] = model_tag_from_params(params)', main_source
+        )
         self.assertIn("def default_1d_model_tag", main_source)
-        self.assertIn('params_payload["model_tag"] = default_1d_model_tag(dim_cfg)', main_source)
+        self.assertIn(
+            'params_payload["model_tag"] = default_1d_model_tag(dim_cfg)', main_source
+        )
 
         test_model_source = read_source("1D/src/test_model.py")
         self.assertIn("model_tag = model_tag_from_params(params)", test_model_source)
-        self.assertIn("def load_model(N, model_idx, filter_type, model_tag=None):", test_model_source)
-        self.assertIn("return tagged_model_path(N, model_idx, filter_type, model_tag)", test_model_source)
+        self.assertIn(
+            "def load_model(N, model_idx, filter_type, model_tag=None):",
+            test_model_source,
+        )
+        self.assertIn(
+            "return tagged_model_path(N, model_idx, filter_type, model_tag)",
+            test_model_source,
+        )
 
         for source_path in [
             "1D/scripts/test_iters.py",
@@ -146,7 +162,9 @@ class StaticValidationTests(unittest.TestCase):
 
         main_source = read_source("main.py")
         self.assertIn("from funcs_common import nn_feature_count", main_source)
-        self.assertIn('params["num_features"] = nn_feature_count(N, params)', main_source)
+        self.assertIn(
+            'params["num_features"] = nn_feature_count(N, params)', main_source
+        )
 
         for config_path in [
             "configs/reproduce_all.yaml",
@@ -221,10 +239,17 @@ class StaticValidationTests(unittest.TestCase):
             self.assertIn("writer.writerows", source)
             self.assertIn("csv_name", source)
 
-        self.assertIn("mean_flux_error_reduction", read_source("1D/scripts/test_iters.py"))
-        self.assertIn("std_flux_error_reduction", read_source("1D/scripts/test_iters_reeds.py"))
+        self.assertIn(
+            "mean_flux_error_reduction", read_source("1D/scripts/test_iters.py")
+        )
+        self.assertIn(
+            "std_flux_error_reduction", read_source("1D/scripts/test_iters_reeds.py")
+        )
         self.assertIn("flux_error_reduction", read_source("2D/scripts/test_all.py"))
-        self.assertIn('filter_type = params["filter_type"]', read_source("2D/scripts/test_all_hohl.py"))
+        self.assertIn(
+            'filter_type = params["filter_type"]',
+            read_source("2D/scripts/test_all_hohl.py"),
+        )
 
     def test_workflow_script_runs_both_ansatz_paths(self):
         script_path = ROOT / "scripts/run_nn_const_workflow.sh"
@@ -281,7 +306,9 @@ class StaticValidationTests(unittest.TestCase):
     def test_wandb_logger_is_wired_for_training(self):
         for source_path in ["1D/src/train_model.py", "2D/src/train_model.py"]:
             source = read_source(source_path)
-            self.assertIn("from wandb_utils import finish_run, init_wandb, log_metrics", source)
+            self.assertIn(
+                "from wandb_utils import finish_run, init_wandb, log_metrics", source
+            )
             self.assertIn("wandb_run = init_wandb(params)", source)
             self.assertIn("log_metrics(", source)
             self.assertIn("finish_run(wandb_run)", source)
@@ -293,7 +320,7 @@ class StaticValidationTests(unittest.TestCase):
             self.assertIn("def init_wandb(params):", source)
             self.assertIn("wandb.init(", source)
             self.assertIn("mode = cfg.get", source)
-            self.assertIn("or \"online\"", source)
+            self.assertIn('or "online"', source)
             self.assertIn("def log_metrics", source)
 
     def test_training_hot_paths_avoid_gpu_synchronization_regressions(self):
@@ -308,17 +335,26 @@ class StaticValidationTests(unittest.TestCase):
             self.assertIn("should_log_metrics(params, l, final=final_epoch)", source)
 
         self.assertIn("_TIMESTEPPING_TENSOR_CACHE", common_1d)
-        self.assertIn("torch.arange(1, N + 1, dtype=torch.float32, device=device)", common_1d)
+        self.assertIn(
+            "torch.arange(1, N + 1, dtype=torch.float32, device=device)", common_1d
+        )
         self.assertIn("torch.linalg.eigh(A)", common_1d)
         self.assertIn("filter_coeffs,", common_1d)
         self.assertNotIn("torch.linalg.eig(", common_1d)
 
         self.assertIn("def compute_upwind_matrices(N, device):", common_2d)
         self.assertIn("_SOLVER_TENSOR_CACHE", common_2d)
-        self.assertIn("filter_coeffs = filter_coefficients(filter_order, N, num_basis, device=device)", common_2d)
-        self.assertIn("upwind_matrices = compute_upwind_matrices(N, device=device)", common_2d)
+        self.assertIn(
+            "filter_coeffs = filter_coefficients(filter_order, N, num_basis, device=device)",
+            common_2d,
+        )
+        self.assertIn(
+            "upwind_matrices = compute_upwind_matrices(N, device=device)", common_2d
+        )
         self.assertNotIn("filter_coeffs, upwind_matrices = solver_tensors", common_2d)
-        self.assertIn("def upwind_flux(N, num_basis, psi, params, upwind_matrices):", common_2d)
+        self.assertIn(
+            "def upwind_flux(N, num_basis, psi, params, upwind_matrices):", common_2d
+        )
         self.assertIn("torch.linalg.eigh(Ax)", common_2d)
         self.assertNotIn("torch.linalg.eig(", common_2d)
 

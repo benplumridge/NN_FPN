@@ -6,7 +6,12 @@ import torch
 
 # Add src to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
-from params_common import model_tag_from_params, params, resolve_device, tagged_model_path
+from params_common import (
+    model_tag_from_params,
+    params,
+    resolve_device,
+    tagged_model_path,
+)
 from test_model import testing
 
 
@@ -94,7 +99,9 @@ def _write_csv(rows):
 
 
 def _print_summary_header():
-    print(f"1D standard results ({ansatz}, model_tag={model_tag}, num_tests={num_tests})")
+    print(
+        f"1D standard results ({ansatz}, model_tag={model_tag}, num_tests={num_tests})"
+    )
     print(f"{'problem':<30} {'T':>5} {'N':>4} {'flux reduction':>21}")
     print("-" * 63)
 

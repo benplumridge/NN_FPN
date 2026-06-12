@@ -8,7 +8,9 @@ def _as_plain_value(value):
             return str(value)
         return value
     if hasattr(value, "shape") and hasattr(value, "dtype"):
-        return f"{type(value).__name__}(shape={tuple(value.shape)}, dtype={value.dtype})"
+        return (
+            f"{type(value).__name__}(shape={tuple(value.shape)}, dtype={value.dtype})"
+        )
     if isinstance(value, (list, tuple)):
         return [_as_plain_value(item) for item in value]
     if isinstance(value, dict):
@@ -41,7 +43,9 @@ def init_wandb(params):
     mode = cfg.get("mode") or os.environ.get("WANDB_MODE") or "online"
     project = cfg.get("project", "NN_FPN")
     tags = list(cfg.get("tags", []))
-    tags.extend(str(tag) for tag in [context.get("dimension"), context.get("ansatz")] if tag)
+    tags.extend(
+        str(tag) for tag in [context.get("dimension"), context.get("ansatz")] if tag
+    )
     if params.get("N") is not None:
         tags.append(f"N{params['N']}")
 

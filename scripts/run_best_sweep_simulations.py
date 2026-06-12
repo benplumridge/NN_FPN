@@ -123,7 +123,9 @@ def parse_args():
 def as_float(value):
     tensor = torch.as_tensor(value).detach().cpu()
     if tensor.numel() != 1:
-        raise ValueError(f"Expected scalar test result, got shape {tuple(tensor.shape)}")
+        raise ValueError(
+            f"Expected scalar test result, got shape {tuple(tensor.shape)}"
+        )
     return float(tensor.item())
 
 
@@ -269,7 +271,9 @@ def main():
             for model in models:
                 configure_model(params, model, nn_feature_count)
                 for model_idx in range(args.num_tests):
-                    row = run_case(params, testing, model, model_idx, ic_idx, problem, T)
+                    row = run_case(
+                        params, testing, model, model_idx, ic_idx, problem, T
+                    )
                     rows.append(row)
                     print(
                         f"{problem:<30} {T:>5.1f} {model.N:>4} "
