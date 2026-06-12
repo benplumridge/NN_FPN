@@ -23,7 +23,7 @@ params["print_results"] = False
 params["num_x"] = int(params.get("reeds_num_x", 512))
 
 
-Ns = [3, 7, 9]
+Ns = [int(N) for N in params.get("Ns", [3, 7, 9])]
 
 filter_type = params["filter_type"]
 if filter_type == 1:

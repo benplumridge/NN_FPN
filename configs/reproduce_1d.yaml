@@ -1,0 +1,79 @@
+workflow:
+  target: 1d
+  ansatz: both
+  phase: all
+  train: true
+  simulate: true
+  mpl_backend: Agg
+  overwrite_results: true
+  wandb:
+    enabled: true
+    project: NN_FPN
+    mode: online
+    group: null
+    tags: []
+    log_interval: 1
+    name_template: "{dimension}-{ansatz}-N{N}-run{replicate}"
+
+1d:
+  enabled: true
+  filter_types:
+    nn: 1
+    constant: 3
+  train:
+    Ns: [3, 7, 9]
+    num_replicates: 1
+    hidden_width: 256
+    nn_weight_decay: 0.001
+    constant_weight_decay: 0.0001
+    params:
+      num_IC: 4
+      batch_size: 64
+      num_epochs: 100
+      learning_rate: 0.01
+      lr_scheduler: cosine
+      lr_warmup_fraction: 0.05
+      lr_min_factor: 1e-5
+      momentum_factor: 0.9
+      sigs_max: 1
+      GD_optimizer: Adam
+      tt_flag: 0
+      IC_idx: 0
+      device: auto
+      ablation_idx: 0
+      feature_variant: log_material_only
+      feature_normalization: sample
+      material_feature_normalization: none
+      feature_log_scale: 1.0
+      feature_log_clip: [0.0, 20.0]
+      feature_eps: 0.00000001
+      include_material_scale_features: true
+      include_material_ratios: true
+      obj_idx: 0
+      training_data: augmented
+      model_tag: augmented
+      training_time_horizons: [0.25, 0.5, 1.0]
+      aux_moment_loss_weight: 0.0
+      relative_loss_eps: 0.000000000001
+  simulate:
+    scripts:
+      - scripts/test_iters.py
+      - scripts/test_iters_reeds.py
+      - scripts/test_all.py
+    result_dir_template: results_{label}
+    params:
+      batch_size: 1
+      tt_flag: 1
+      device: auto
+      ablation_idx: 0
+      feature_variant: log_material_only
+      feature_normalization: sample
+      material_feature_normalization: none
+      feature_log_scale: 1.0
+      feature_log_clip: [0.0, 20.0]
+      feature_eps: 0.00000001
+      include_material_scale_features: true
+      include_material_ratios: true
+      model_tag: augmented
+      num_tests: 1
+      reeds_num_x: 512

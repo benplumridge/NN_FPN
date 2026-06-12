@@ -6,8 +6,10 @@ from tqdm.auto import tqdm
 from funcs_common import (
     SimpleNN,
     SimpleNN_const,
+    nn_feature_count,
     obj_func,
     obj_func_time,
+    obj_func_time_average,
     timestepping,
     compute_cell_average,
 )
@@ -45,6 +47,10 @@ def _sqrt_loss(loss_value):
     return float("nan")
 
 
+def _tensor_p95(value):
+    return torch.quantile(value.reshape(-1), 0.95)
+
+
 def _set_progress_postfix(progress, loss_value, best_loss):
     progress.set_postfix(
         {
@@ -79,6 +85,9 @@ def training(params):
     obj_idx = params["obj_idx"]
     init_bias = params["init_bias"]
     filter_type = params["filter_type"]
+    if filter_type == 0:
+        params["num_features"] = nn_feature_count(N, params)
+        num_features = params["num_features"]
 
     if filter_type == 0:
         NN_model = SimpleNN(num_features, num_hidden)
@@ -152,7 +161,7 @@ def training(params):
             source_training,
         )[0]
 
-        FPN, sigf = timestepping(
+        FPN, sigf, filter_stats = timestepping(
             psi0_training,
             1,
             NN_model,
@@ -162,11 +171,16 @@ def training(params):
             N,
             num_basis,
             source_training,
+            return_filter_stats=True,
         )
         if obj_idx == 0:
             loss = obj_func(FPN[:, :, :, 0] - exact[:, :, :, 0])
         elif obj_idx == 1:
             loss = obj_func_time(FPN[:, :, :, :, 0] - exact[:, :, :, :, 0])
+        elif obj_idx in (2, 3):
+            loss = obj_func_time_average(FPN[:, :, :, :, 0] - exact[:, :, :, :, 0])
+        else:
+            raise ValueError(f"Unsupported obj_idx={obj_idx}")
         loss.backward()
         opt.step()
         if filter_type == 1:
@@ -184,18 +198,27 @@ def training(params):
             loss_value = None
 
         if wandb_run is not None and should_report:
+            sigs_detached = sigs.detach()
+            sigt_detached = sigt.detach()
+            sigma_a_detached = sigt_detached - sigs_detached
             sigf_detached = sigf.detach()
             log_metrics(
                 wandb_run,
                 {
                     "train/loss": loss_value,
                     "train/sqrt_loss": _sqrt_loss(loss_value),
-                    "train/sigma_s_mean": sigs.detach().mean().item(),
-                    "train/sigma_t_mean": sigt.detach().mean().item(),
-                    "train/sigma_a_mean": (sigt - sigs).detach().mean().item(),
+                    "train/sigma_s_mean": sigs_detached.mean().item(),
+                    "train/sigma_t_mean": sigt_detached.mean().item(),
+                    "train/sigma_t_max": sigt_detached.max().item(),
+                    "train/sigma_t_p95": _tensor_p95(sigt_detached).item(),
+                    "train/sigma_a_mean": sigma_a_detached.mean().item(),
                     "train/filter_strength_mean": sigf_detached.mean().item(),
                     "train/filter_strength_min": sigf_detached.min().item(),
                     "train/filter_strength_max": sigf_detached.max().item(),
+                    "train/filter_strength_p95": _tensor_p95(sigf_detached).item(),
+                    "train/filter_strength_rollout_max": filter_stats[
+                        "filter_strength_rollout_max"
+                    ].item(),
                     "train/epoch": l,
                 },
                 l,

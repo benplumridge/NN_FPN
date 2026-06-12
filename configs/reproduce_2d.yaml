@@ -1,0 +1,78 @@
+workflow:
+  target: 2d
+  ansatz: both
+  phase: all
+  train: true
+  simulate: true
+  mpl_backend: Agg
+  overwrite_results: true
+  wandb:
+    enabled: true
+    project: NN_FPN
+    mode: online
+    group: null
+    tags: []
+    log_interval: 10
+    name_template: "{dimension}-{ansatz}-N{N}-run{replicate}"
+
+2d:
+  enabled: true
+  filter_types:
+    nn: 0
+    constant: 1
+  train:
+    Ns: [3, 5, 7, 9]
+    hidden_width: half_features
+    init_bias:
+      nn:
+        3: 5.0
+        5: 5.0
+        7: 5.0
+        9: 5.0
+      constant:
+        3: 31.75
+        5: 27.27
+        7: 16.52
+        9: 13.62
+    params:
+      num_IC: 5
+      batch_size: 5
+      num_epochs: 200
+      learning_rate: 0.01
+      momentum_factor: 0.9
+      sigs_max: 1
+      GD_optimizer: Adam
+      tt_flag: 0
+      IC_idx: 0
+      device: auto
+      feature_variant: baseline_norm
+      feature_normalization: sample
+      material_feature_normalization: none
+      feature_log_scale: 1.0
+      feature_log_clip: [0.0, 20.0]
+      feature_eps: 0.00000001
+      include_material_scale_features: false
+      include_material_ratios: false
+  simulate:
+    paper_scripts:
+      - scripts/test_all.py
+    fallback_scripts:
+      - scripts/test_driver.py
+    required_refs:
+      - exact_solns/linesource_37.npy
+      - exact_solns/lattice_37_T16.npy
+      - exact_solns/lattice_37_T32.npy
+    fallback_without_refs: true
+    result_dir_template: results_{label}
+    params:
+      batch_size: 1
+      tt_flag: 1
+      device: auto
+      feature_variant: baseline_norm
+      feature_normalization: sample
+      material_feature_normalization: none
+      feature_log_scale: 1.0
+      feature_log_clip: [0.0, 20.0]
+      feature_eps: 0.00000001
+      include_material_scale_features: false
+      include_material_ratios: false

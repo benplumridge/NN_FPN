@@ -1,0 +1,309 @@
+\documentclass[10pt]{article}
+\usepackage[margin=0.72in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{graphicx}
+\usepackage{bm}
+\usepackage{hyperref}
+\usepackage{caption}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.45em}
+\renewcommand{\arraystretch}{1.16}
+
+\newcommand{\rnn}[1]{r_{#1}^{\mathrm{nn}}}
+\newcommand{\rconst}[1]{r_{#1}^{\mathrm{const}}}
+\newcommand{\cellbest}[1]{\(\bm{#1}\)}
+\newcommand{\cellplain}[1]{\(#1\)}
+\newcommand{\plotcell}[2]{%
+  \begin{minipage}{0.155\linewidth}\centering
+    \includegraphics[width=\linewidth]{#1}\\[-0.2em]
+    {\scriptsize #2}
+  \end{minipage}%
+}
+
+\title{Best-Sweep 1D Learning Pipeline Updates and 10-Replica Results}
+\author{NN\_FPN repository notes}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section*{Learning-pipeline changes relative to the paper reproduction setup}
+The experiments here keep the paper evaluation metric but change the learning pipeline used to train the filter models.  The reported quantity is the scalar-flux error ratio
+\[
+  r_N = \frac{\lVert \phi^{FP_N}-\phi^{\mathrm{exact}}\rVert}{\lVert \phi^{P_N}-\phi^{\mathrm{exact}}\rVert},
+\]
+so smaller values are better.  The neural-network and constant-filter entries are denoted by \(\rnn{N}\) and \(\rconst{N}\), respectively.
+
+The main changes are:
+\begin{itemize}
+  \item Training uses the augmented 1D sampler instead of the original fixed four-family paper-mode sampler.  Each batch draws randomized initial/source families and randomized material families, including Gaussian, discontinuous, vanishing-cross-section-like, source-driven, and Reeds-like cases.
+  \item The NN architecture and optimizer settings are selected from W\&B random sweeps minimizing \texttt{train/loss}; the winning settings are then retrained for 10 independent replicas.
+  \item The feature map is sweep-selected per moment order.  In particular, \(N=3\) uses \texttt{log\_material\_only}; \(N=7\) uses \texttt{no\_norm\_log}; and \(N=9\) uses \texttt{baseline\_norm}.  All winning settings train on final-time scalar-flux loss with no auxiliary moment penalty.
+  \item Constant-filter models are retrained on the same selected training settings and replica count for the corresponding \(N\), then evaluated against the same tests.
+\end{itemize}
+
+\begin{center}
+{\scriptsize
+\begin{tabular}{c c c c c c}
+\toprule
+\(N\) & feature variant & log scale & log clip & material normalization & material channels \\
+\midrule
+3 & \texttt{log\_material\_only} & 0.1 & \([0,20]\) & none & scale logs + ratios \\
+7 & \texttt{no\_norm\_log} & 0.1 & \([0,10]\) & sample & scale logs + ratios \\
+9 & \texttt{baseline\_norm} & 1.0 & \([0,40]\) & sample & scale logs \\
+\bottomrule
+\end{tabular}
+}
+\end{center}
+
+\subsection*{Selected learning hyperparameters}
+All rows use the augmented training sampler, final-time scalar-flux loss,
+\(\texttt{aux\_moment\_loss\_weight}=0\), and
+\(\texttt{relative\_loss\_eps}=10^{-12}\).
+\begin{center}
+{\scriptsize
+\begin{tabular}{c c c c c c c c c c}
+\toprule
+\(N\) & replicas & hidden & batch & epochs & optimizer & lr & scheduler (warmup, min) & wd NN / const & horizons \\
+\midrule
+3 & 10 & 64 & 32 & 100 & Adam & 0.003 & constant \((0,10^{-5})\) & \(10^{-3}/10^{-4}\) & \(\{0.5\}\) \\
+7 & 10 & 512 & 64 & 100 & Adam & 0.01 & cosine \((0.05,0)\) & \(10^{-6}/10^{-4}\) & \(\{0.5\}\) \\
+9 & 10 & 256 & 32 & 100 & Adam & 0.01 & constant \((0,0)\) & \(10^{-6}/10^{-4}\) & \(\{0.25,0.5,1.0\}\) \\
+\bottomrule
+\end{tabular}
+}
+\end{center}
+
+
+\section*{Neural-network input features}
+For a training sample and spatial cell \(i\), let
+\(u_i=(u_{i,0},\ldots,u_{i,N})^\top\in\mathbb{R}^{N+1}\) denote the moment
+vector from the previous iterate.  The transport residual used by the code is
+\[
+  d_i = \frac{(A u)_{i+1/2}-(A u)_{i-1/2}}{\Delta x},
+\]
+where the interface quantities are the upwind finite-volume fluxes assembled in
+the solver.  The remaining baseline quantities are
+\[
+  c_i = \sigma_{t,i} u_i, \qquad
+  s_i = \sigma_{s,i} u_{i,0}, \qquad
+  q_i = Q_i,
+\]
+with \(d_i,c_i\in\mathbb{R}^{N+1}\) and \(s_i,q_i\in\mathbb{R}\).
+For any channel tensor \(g_{i,k}\), the sample-wise spatial normalization is
+\[
+  \mathcal{N}_x(g)_{i,k}
+  = \frac{g_{i,k}-\frac{1}{n_x}\sum_{j=1}^{n_x}g_{j,k}}
+         {\operatorname{std}_{1\le j\le n_x}(g_{j,k})+10^{-10}} .
+\]
+With the filter type used in the sweeps, the manuscript-style baseline input is
+\[
+  z_i^{\mathrm{base}}
+  = \Big[
+      \mathcal{N}_x(|d_i|),
+      \mathcal{N}_x(|c_i|),
+      \mathcal{N}_x(|s_i|),
+      \mathcal{N}_x(|q_i|)
+    \Big]
+  \in\mathbb{R}^{2N+4}.
+\]
+The log feature map introduced in the sweeps is
+\[
+  L_{\alpha,[a,b]}(g) =
+  \operatorname{clip}_{[a,b]}\!\left(\log\!\left(1+\frac{|g|}{\alpha}\right)\right).
+\]
+When material-scale features are enabled, the absorption coefficient is
+\(\sigma_{a,i}=\max(\sigma_{t,i}-\sigma_{s,i},0)\) and the appended material vector is
+\[
+  m_i = \Big[
+    L_{\alpha,[a,b]}(\sigma_{s,i}),
+    L_{\alpha,[a,b]}(\sigma_{t,i}),
+    L_{\alpha,[a,b]}(\sigma_{a,i}),
+    \frac{\sigma_{s,i}}{\max(|\sigma_{t,i}|,\varepsilon)},
+    \frac{\sigma_{a,i}}{\max(|\sigma_{t,i}|,\varepsilon)}
+  \Big].
+\]
+If material ratios are disabled, only the first three scale-log entries of
+\(m_i\) are appended.  Thus the three reported best configurations use
+\begin{align*}
+  x_i^{N=3} &= \big[z_i^{\mathrm{base}},\,m_i\big],
+  &\alpha&=0.1, & [a,b]&=[0,20], & \dim x_i&=15, \\
+  x_i^{N=7} &= \big[
+      L_{0.1,[0,10]}(d_i),
+      L_{0.1,[0,10]}(c_i),
+      L_{0.1,[0,10]}(s_i),
+      L_{0.1,[0,10]}(q_i),
+      \mathcal{N}_x(m_i)
+    \big],
+  &&& [a,b]&=[0,10], & \dim x_i&=23, \\
+  x_i^{N=9} &= \big[z_i^{\mathrm{base}},\,
+      \mathcal{N}_x(m_i^{1:3})
+    \big],
+  &\alpha&=1.0, & [a,b]&=[0,40], & \dim x_i&=25 .
+\end{align*}
+The neural network evaluates one scalar per cell, \(\sigma_{f,i}=F_\theta(x_i)\),
+which is used as the learned filter strength in the moment update.
+
+All tables below report mean \(\pm\) standard deviation over 10 trained replicas.  Boldface marks the lower mean between the NN and constant filter at fixed test case, time, and moment order.
+
+\section*{Results tables}
+
+\subsection*{Gaussian}
+\begin{center}
+{\scriptsize
+\begin{tabular}{c c c c c c c}
+\toprule
+ & \multicolumn{3}{c}{Neural network} & \multicolumn{3}{c}{Constant filter} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7}
+\(t_f\) & \(\rnn{3}\) & \(\rnn{7}\) & \(\rnn{9}\) & \(\rconst{3}\) & \(\rconst{7}\) & \(\rconst{9}\) \\
+\midrule
+0.5 & \cellbest{0.2467 \pm 0.0098} & \cellbest{0.1089 \pm 0.0169} & \cellbest{0.1108 \pm 0.0788} & \cellplain{0.9814 \pm 0.0010} & \cellplain{0.9618 \pm 0.0012} & \cellplain{0.9543 \pm 0.0042} \\
+1.0 & \cellbest{0.2096 \pm 0.0023} & \cellbest{0.1036 \pm 0.0400} & \cellbest{0.0363 \pm 0.0222} & \cellplain{0.9647 \pm 0.0018} & \cellplain{0.9237 \pm 0.0023} & \cellplain{0.9101 \pm 0.0081} \\
+\bottomrule
+\end{tabular}
+}
+\end{center}
+
+\subsection*{Vanishing cross section}
+\begin{center}
+{\scriptsize
+\begin{tabular}{c c c c c c c}
+\toprule
+ & \multicolumn{3}{c}{Neural network} & \multicolumn{3}{c}{Constant filter} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7}
+\(t_f\) & \(\rnn{3}\) & \(\rnn{7}\) & \(\rnn{9}\) & \(\rconst{3}\) & \(\rconst{7}\) & \(\rconst{9}\) \\
+\midrule
+0.5 & \cellbest{0.3339 \pm 0.0091} & \cellbest{0.0881 \pm 0.0200} & \cellbest{0.1040 \pm 0.0749} & \cellplain{0.9835 \pm 0.0009} & \cellplain{0.9613 \pm 0.0012} & \cellplain{0.9552 \pm 0.0041} \\
+1.0 & \cellbest{0.0817 \pm 0.0048} & \cellbest{0.0896 \pm 0.0401} & \cellbest{0.0274 \pm 0.0181} & \cellplain{0.9621 \pm 0.0020} & \cellplain{0.9263 \pm 0.0022} & \cellplain{0.9106 \pm 0.0081} \\
+\bottomrule
+\end{tabular}
+}
+\end{center}
+
+\subsection*{Discontinuous cross section}
+\begin{center}
+{\scriptsize
+\begin{tabular}{c c c c c c c}
+\toprule
+ & \multicolumn{3}{c}{Neural network} & \multicolumn{3}{c}{Constant filter} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7}
+\(t_f\) & \(\rnn{3}\) & \(\rnn{7}\) & \(\rnn{9}\) & \(\rconst{3}\) & \(\rconst{7}\) & \(\rconst{9}\) \\
+\midrule
+0.5 & \cellbest{0.3151 \pm 0.0083} & \cellbest{0.1050 \pm 0.0208} & \cellbest{0.1093 \pm 0.0977} & \cellplain{0.9829 \pm 0.0009} & \cellplain{0.9607 \pm 0.0012} & \cellplain{0.9547 \pm 0.0042} \\
+1.0 & \cellbest{0.1991 \pm 0.0088} & \cellbest{0.1479 \pm 0.0382} & \cellbest{0.0480 \pm 0.0227} & \cellplain{0.9623 \pm 0.0020} & \cellplain{0.9242 \pm 0.0023} & \cellplain{0.9094 \pm 0.0082} \\
+\bottomrule
+\end{tabular}
+}
+\end{center}
+
+\subsection*{Reeds}
+\begin{center}
+{\scriptsize
+\begin{tabular}{c c c c c c c}
+\toprule
+ & \multicolumn{3}{c}{Neural network} & \multicolumn{3}{c}{Constant filter} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7}
+\(t_f\) & \(\rnn{3}\) & \(\rnn{7}\) & \(\rnn{9}\) & \(\rconst{3}\) & \(\rconst{7}\) & \(\rconst{9}\) \\
+\midrule
+5.0 & \cellbest{0.4493 \pm 0.0099} & \cellbest{0.4725 \pm 0.0813} & \cellbest{0.3582 \pm 0.0330} & \cellplain{0.8638 \pm 0.0066} & \cellplain{0.7413 \pm 0.0067} & \cellplain{0.7037 \pm 0.0225} \\
+10.0 & \cellbest{0.7526 \pm 0.0128} & \cellplain{0.8206 \pm 0.1134} & \cellplain{0.5745 \pm 0.0728} & \cellplain{0.8215 \pm 0.0077} & \cellbest{0.5277 \pm 0.0093} & \cellbest{0.4807 \pm 0.0296} \\
+\bottomrule
+\end{tabular}
+}
+\end{center}
+
+\clearpage
+\section*{Corresponding figures}
+Each panel shows the saved scalar-flux/filter plot from the corresponding 10-replica run directory.  For each test case and time, the columns are NN \(N=3\), constant \(N=3\), NN \(N=7\), constant \(N=7\), NN \(N=9\), and constant \(N=9\).
+
+\clearpage
+\subsection*{Gaussian}
+\begin{figure}[h!]
+\centering
+\plotcell{1D/results_nn_best_N3_10x/Gaussian/P3_t5.png}{NN $N=3$, $t_f=0.5$}\hfill
+\plotcell{1D/results_const_best_N3_10x/Gaussian/P3_t5.png}{Const $N=3$, $t_f=0.5$}\hfill
+\plotcell{1D/results_nn_best_N7_10x/Gaussian/P7_t5.png}{NN $N=7$, $t_f=0.5$}\hfill
+\plotcell{1D/results_const_best_N7_10x/Gaussian/P7_t5.png}{Const $N=7$, $t_f=0.5$}\hfill
+\plotcell{1D/results_nn_best_N9_10x/Gaussian/P9_t5.png}{NN $N=9$, $t_f=0.5$}\hfill
+\plotcell{1D/results_const_best_N9_10x/Gaussian/P9_t5.png}{Const $N=9$, $t_f=0.5$}
+
+\vspace{0.6em}
+\plotcell{1D/results_nn_best_N3_10x/Gaussian/P3_t10.png}{NN $N=3$, $t_f=1.0$}\hfill
+\plotcell{1D/results_const_best_N3_10x/Gaussian/P3_t10.png}{Const $N=3$, $t_f=1.0$}\hfill
+\plotcell{1D/results_nn_best_N7_10x/Gaussian/P7_t10.png}{NN $N=7$, $t_f=1.0$}\hfill
+\plotcell{1D/results_const_best_N7_10x/Gaussian/P7_t10.png}{Const $N=7$, $t_f=1.0$}\hfill
+\plotcell{1D/results_nn_best_N9_10x/Gaussian/P9_t10.png}{NN $N=9$, $t_f=1.0$}\hfill
+\plotcell{1D/results_const_best_N9_10x/Gaussian/P9_t10.png}{Const $N=9$, $t_f=1.0$}
+\caption{Gaussian test case.}
+\end{figure}
+
+\clearpage
+\subsection*{Vanishing cross section}
+\begin{figure}[h!]
+\centering
+\plotcell{1D/results_nn_best_N3_10x/Vanishing_cross_section/P3_t5.png}{NN $N=3$, $t_f=0.5$}\hfill
+\plotcell{1D/results_const_best_N3_10x/Vanishing_cross_section/P3_t5.png}{Const $N=3$, $t_f=0.5$}\hfill
+\plotcell{1D/results_nn_best_N7_10x/Vanishing_cross_section/P7_t5.png}{NN $N=7$, $t_f=0.5$}\hfill
+\plotcell{1D/results_const_best_N7_10x/Vanishing_cross_section/P7_t5.png}{Const $N=7$, $t_f=0.5$}\hfill
+\plotcell{1D/results_nn_best_N9_10x/Vanishing_cross_section/P9_t5.png}{NN $N=9$, $t_f=0.5$}\hfill
+\plotcell{1D/results_const_best_N9_10x/Vanishing_cross_section/P9_t5.png}{Const $N=9$, $t_f=0.5$}
+
+\vspace{0.6em}
+\plotcell{1D/results_nn_best_N3_10x/Vanishing_cross_section/P3_t10.png}{NN $N=3$, $t_f=1.0$}\hfill
+\plotcell{1D/results_const_best_N3_10x/Vanishing_cross_section/P3_t10.png}{Const $N=3$, $t_f=1.0$}\hfill
+\plotcell{1D/results_nn_best_N7_10x/Vanishing_cross_section/P7_t10.png}{NN $N=7$, $t_f=1.0$}\hfill
+\plotcell{1D/results_const_best_N7_10x/Vanishing_cross_section/P7_t10.png}{Const $N=7$, $t_f=1.0$}\hfill
+\plotcell{1D/results_nn_best_N9_10x/Vanishing_cross_section/P9_t10.png}{NN $N=9$, $t_f=1.0$}\hfill
+\plotcell{1D/results_const_best_N9_10x/Vanishing_cross_section/P9_t10.png}{Const $N=9$, $t_f=1.0$}
+\caption{Vanishing cross section test case.}
+\end{figure}
+
+\clearpage
+\subsection*{Discontinuous cross section}
+\begin{figure}[h!]
+\centering
+\plotcell{1D/results_nn_best_N3_10x/Discontinuous_cross_section/P3_t5.png}{NN $N=3$, $t_f=0.5$}\hfill
+\plotcell{1D/results_const_best_N3_10x/Discontinuous_cross_section/P3_t5.png}{Const $N=3$, $t_f=0.5$}\hfill
+\plotcell{1D/results_nn_best_N7_10x/Discontinuous_cross_section/P7_t5.png}{NN $N=7$, $t_f=0.5$}\hfill
+\plotcell{1D/results_const_best_N7_10x/Discontinuous_cross_section/P7_t5.png}{Const $N=7$, $t_f=0.5$}\hfill
+\plotcell{1D/results_nn_best_N9_10x/Discontinuous_cross_section/P9_t5.png}{NN $N=9$, $t_f=0.5$}\hfill
+\plotcell{1D/results_const_best_N9_10x/Discontinuous_cross_section/P9_t5.png}{Const $N=9$, $t_f=0.5$}
+
+\vspace{0.6em}
+\plotcell{1D/results_nn_best_N3_10x/Discontinuous_cross_section/P3_t10.png}{NN $N=3$, $t_f=1.0$}\hfill
+\plotcell{1D/results_const_best_N3_10x/Discontinuous_cross_section/P3_t10.png}{Const $N=3$, $t_f=1.0$}\hfill
+\plotcell{1D/results_nn_best_N7_10x/Discontinuous_cross_section/P7_t10.png}{NN $N=7$, $t_f=1.0$}\hfill
+\plotcell{1D/results_const_best_N7_10x/Discontinuous_cross_section/P7_t10.png}{Const $N=7$, $t_f=1.0$}\hfill
+\plotcell{1D/results_nn_best_N9_10x/Discontinuous_cross_section/P9_t10.png}{NN $N=9$, $t_f=1.0$}\hfill
+\plotcell{1D/results_const_best_N9_10x/Discontinuous_cross_section/P9_t10.png}{Const $N=9$, $t_f=1.0$}
+\caption{Discontinuous cross section test case.}
+\end{figure}
+
+\clearpage
+\subsection*{Reeds}
+\begin{figure}[h!]
+\centering
+\plotcell{1D/results_nn_best_N3_10x/Reeds/P3_t5.png}{NN $N=3$, $t_f=5$}\hfill
+\plotcell{1D/results_const_best_N3_10x/Reeds/P3_t5.png}{Const $N=3$, $t_f=5$}\hfill
+\plotcell{1D/results_nn_best_N7_10x/Reeds/P7_t5.png}{NN $N=7$, $t_f=5$}\hfill
+\plotcell{1D/results_const_best_N7_10x/Reeds/P7_t5.png}{Const $N=7$, $t_f=5$}\hfill
+\plotcell{1D/results_nn_best_N9_10x/Reeds/P9_t5.png}{NN $N=9$, $t_f=5$}\hfill
+\plotcell{1D/results_const_best_N9_10x/Reeds/P9_t5.png}{Const $N=9$, $t_f=5$}
+
+\vspace{0.6em}
+\plotcell{1D/results_nn_best_N3_10x/Reeds/P3_t10.png}{NN $N=3$, $t_f=10$}\hfill
+\plotcell{1D/results_const_best_N3_10x/Reeds/P3_t10.png}{Const $N=3$, $t_f=10$}\hfill
+\plotcell{1D/results_nn_best_N7_10x/Reeds/P7_t10.png}{NN $N=7$, $t_f=10$}\hfill
+\plotcell{1D/results_const_best_N7_10x/Reeds/P7_t10.png}{Const $N=7$, $t_f=10$}\hfill
+\plotcell{1D/results_nn_best_N9_10x/Reeds/P9_t10.png}{NN $N=9$, $t_f=10$}\hfill
+\plotcell{1D/results_const_best_N9_10x/Reeds/P9_t10.png}{Const $N=9$, $t_f=10$}
+\caption{Reeds test case.}
+\end{figure}
+
+\end{document}

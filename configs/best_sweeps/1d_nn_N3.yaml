@@ -1,0 +1,80 @@
+workflow:
+  target: 1d
+  ansatz: nn
+  phase: train
+  train: true
+  simulate: false
+  mpl_backend: Agg
+  overwrite_results: true
+  wandb:
+    enabled: true
+    project: NN_FPN
+    mode: online
+    group: null
+    tags: [N3, sweep]
+    log_interval: 1
+    name_template: "1d-nn-sweep-N{N}-{model_tag}"
+
+1d:
+  enabled: true
+  filter_types:
+    nn: 1
+    constant: 3
+  train:
+    Ns: [3]
+    num_replicates: 1
+    hidden_width: 64
+    nn_weight_decay: 0.001
+    constant_weight_decay: 0.0001
+    params:
+      num_IC: 4
+      batch_size: 32
+      num_epochs: 100
+      learning_rate: 0.003
+      lr_scheduler: constant
+      lr_warmup_fraction: 0.0
+      lr_min_factor: 0.00001
+      momentum_factor: 0.9
+      sigs_max: 1
+      GD_optimizer: Adam
+      tt_flag: 0
+      IC_idx: 0
+      device: auto
+      ablation_idx: 0
+      feature_variant: log_material_only
+      feature_normalization: none
+      material_feature_normalization: none
+      feature_log_scale: 0.1
+      feature_log_clip: [0.0, 20.0]
+      feature_eps: 0.00000001
+      include_material_scale_features: true
+      include_material_ratios: true
+      obj_idx: 0
+      training_data: augmented
+      model_tag: sweep_n3_7412e87a
+      training_time_horizons: [0.5]
+      aux_moment_loss_weight: 0.0
+      relative_loss_eps: 0.000000000001
+  simulate:
+    scripts:
+      - scripts/test_iters.py
+      - scripts/test_iters_reeds.py
+      - scripts/test_all.py
+    result_dir_template: results_{label}_best_N3
+    params:
+      batch_size: 1
+      tt_flag: 1
+      device: auto
+      ablation_idx: 0
+      feature_variant: log_material_only
+      feature_normalization: none
+      material_feature_normalization: none
+      feature_log_scale: 0.1
+      feature_log_clip: [0.0, 20.0]
+      feature_eps: 0.00000001
+      include_material_scale_features: true
+      include_material_ratios: true
+      model_tag: sweep_n3_7412e87a
+      Ns: [3]
+      num_tests: 1
+      reeds_num_x: 512

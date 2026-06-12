@@ -59,13 +59,23 @@ filter_type = 1
 # objective functional index
 # 0 - scalar flux at final time
 # 1 - all moments at final time
-# 2 - scalar flux in time
+# 2 - scalar flux in time, summed over time steps
+# 3 - scalar flux in time, averaged over time steps
 obj_idx = 0
 
 xl = -1
 xr = 1
 
 filter_order = 4
+
+feature_variant = "baseline_norm"
+feature_normalization = "sample"
+material_feature_normalization = "none"
+feature_log_scale = 1.0
+feature_log_clip = [0.0, 20.0]
+feature_eps = 1e-8
+include_material_scale_features = False
+include_material_ratios = False
 
 L = xr - xl
 dx = L / num_x
@@ -106,4 +116,12 @@ params = {
     "filter_order": filter_order,
     "method_order": method_order,
     "obj_idx": obj_idx,
+    "feature_variant": feature_variant,
+    "feature_normalization": feature_normalization,
+    "material_feature_normalization": material_feature_normalization,
+    "feature_log_scale": feature_log_scale,
+    "feature_log_clip": feature_log_clip,
+    "feature_eps": feature_eps,
+    "include_material_scale_features": include_material_scale_features,
+    "include_material_ratios": include_material_ratios,
 }

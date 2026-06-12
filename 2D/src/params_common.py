@@ -22,10 +22,21 @@ T = 0.5
 
 # objective functional flag
 # 0 - final time scalar flux
-# 1 - over time scalar flux
+# 1 - scalar flux in time, summed over time steps
+# 2 - scalar flux in time, averaged over time steps
+# 3 - scalar flux in time, averaged over time steps (1D-compatible alias)
 obj_idx = 1
 
 filter_order = 4
+
+feature_variant = "baseline_norm"
+feature_normalization = "sample"
+material_feature_normalization = "none"
+feature_log_scale = 1.0
+feature_log_clip = [0.0, 20.0]
+feature_eps = 1e-8
+include_material_scale_features = False
+include_material_ratios = False
 
 # filter type
 # 0 - Neural network
@@ -98,5 +109,13 @@ params = {
     "show_sym_errors": show_sym_errors,
     "show_slices": show_slices,
     "obj_idx": obj_idx,
+    "feature_variant": feature_variant,
+    "feature_normalization": feature_normalization,
+    "material_feature_normalization": material_feature_normalization,
+    "feature_log_scale": feature_log_scale,
+    "feature_log_clip": feature_log_clip,
+    "feature_eps": feature_eps,
+    "include_material_scale_features": include_material_scale_features,
+    "include_material_ratios": include_material_ratios,
     "bias_init": bias_init,
 }

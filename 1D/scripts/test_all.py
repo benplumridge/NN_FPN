@@ -15,7 +15,7 @@ import torch
 # Add src to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 from params_common import model_tag_from_params, params, resolve_device
-from funcs_common import filter_func
+from funcs_common import filter_func, nn_feature_count
 from test_model import testing
 
 params["batch_size"] = 1
@@ -53,18 +53,17 @@ N_exact = 127
 filter_order = 4
 num_x = params["num_x"]
 dx = params["dx"]
+Ns = [int(N) for N in params.get("Ns", [3, 7, 9])]
 
 _print_summary_header()
 
 for IC_idx in [0, 1, 2]:
     params["IC_idx"] = IC_idx
-    for N in [3, 7, 9]:
+    for N in Ns:
         filt_input = torch.arange(0, N + 1, 1) / (N + 1)
         filter = -torch.log(filter_func(filt_input, filter_order))
-        num_features = 2 * N + 4
-        num_hidden = N + 2
-        params["num_features"] = num_features
-        params["num_hidden"] = num_hidden
+        params["num_features"] = nn_feature_count(N, params)
+        params.setdefault("num_hidden", N + 2)
         params["filter"] = filter
         params["N"] = N
         for T in [0.5, 1]:
@@ -77,14 +76,11 @@ for IC_idx in [0, 1, 2]:
             _print_summary_row(IC_NAMES[IC_idx], T, N, error_red)
 
 params["IC_idx"] = 6
-# for N in [3]:
-for N in [3, 7, 9]:
+for N in Ns:
     filt_input = torch.arange(0, N + 1, 1) / (N + 1)
     filter = -torch.log(filter_func(filt_input, filter_order))
-    num_features = 2 * N + 4
-    num_hidden = N + 2
-    params["num_features"] = num_features
-    params["num_hidden"] = num_hidden
+    params["num_features"] = nn_feature_count(N, params)
+    params.setdefault("num_hidden", N + 2)
     params["filter"] = filter
     params["N"] = N
     for T in [5, 10]:

@@ -4,6 +4,66 @@ import numpy as np
 
 
 _SOLVER_TENSOR_CACHE = {}
+FEATURE_VARIANTS = {
+    "baseline_norm",
+    "log_norm",
+    "baseline_plus_log",
+    "log_material_only",
+    "no_norm_log",
+}
+FEATURE_VARIANT_ALIASES = {
+    "baseline": "baseline_norm",
+    "current": "baseline_norm",
+    "paper": "baseline_norm",
+    "log": "log_norm",
+    "baseline+log": "baseline_plus_log",
+    "plus_log": "baseline_plus_log",
+    "material_log": "log_material_only",
+    "material_only": "log_material_only",
+}
+
+
+def feature_variant(params=None):
+    params = params or {}
+    value = str(params.get("feature_variant", "baseline_norm")).lower()
+    value = FEATURE_VARIANT_ALIASES.get(value, value)
+    if value not in FEATURE_VARIANTS:
+        raise ValueError(
+            f"Unsupported feature_variant={value!r}. "
+            f"Expected one of: {', '.join(sorted(FEATURE_VARIANTS))}."
+        )
+    return value
+
+
+def _material_features_enabled(params):
+    variant = feature_variant(params)
+    return bool(
+        variant == "log_material_only"
+        or params.get("include_material_scale_features", False)
+        or params.get("include_material_features", False)
+        or params.get("include_material_ratios", False)
+    )
+
+
+def _material_feature_count(params):
+    if not _material_features_enabled(params):
+        return 0
+    return 3 + (2 if params.get("include_material_ratios", False) else 0)
+
+
+def nn_feature_count(N, params=None):
+    params = params or {}
+    base_count = 2 * (int(N) + 1) + 2
+    variant = feature_variant(params)
+    material_count = _material_feature_count(params)
+
+    if variant in {"baseline_norm", "log_norm", "no_norm_log"}:
+        return base_count + material_count
+    if variant == "baseline_plus_log":
+        return 2 * base_count + material_count
+    if variant == "log_material_only":
+        return base_count + material_count
+    raise AssertionError(f"Unhandled feature_variant={variant!r}")
 
 
 def _device_cache_key(device):
@@ -62,6 +122,11 @@ def obj_func(z):
 def obj_func_time(z):
     dims = tuple(i for i in range(z.ndim) if i != 1)
     return torch.sum(torch.mean(z**2, dim=dims))
+
+
+def obj_func_time_average(z):
+    dims = tuple(i for i in range(z.ndim) if i != 1)
+    return torch.mean(torch.mean(z**2, dim=dims))
 
 
 def minmod(a, b):
@@ -251,7 +316,98 @@ def upwind_flux(N, num_basis, psi, params, upwind_matrices):
 
     return fluxes, A_dxpsi, A_dypsi
 
-def preprocess_features(N, psi, dxpsi, dypsi, scattering, source, params):
+def _feature_eps(params):
+    return float(params.get("feature_eps", params.get("log_feature_eps", 1e-8)))
+
+
+def _log_clip_bounds(params):
+    clip = params.get("feature_log_clip", params.get("log_feature_clip", [0.0, 20.0]))
+    if clip is None:
+        return None
+    if isinstance(clip, (int, float)):
+        return 0.0, float(clip)
+    if len(clip) != 2:
+        raise ValueError("feature_log_clip must be null, a scalar, or [min, max]")
+    return float(clip[0]), float(clip[1])
+
+
+def _log_scale(params):
+    return max(
+        float(params.get("feature_log_scale", params.get("log_feature_scale", 1.0))),
+        _feature_eps(params),
+    )
+
+
+def _log_magnitude(value, params):
+    logged = torch.log1p(torch.abs(value) / _log_scale(params))
+    bounds = _log_clip_bounds(params)
+    if bounds is not None:
+        logged = torch.clamp(logged, min=bounds[0], max=bounds[1])
+    return logged
+
+
+def _stat_tensor(value, feature, name):
+    if value is None:
+        raise ValueError(f"{name} is required when feature_normalization='global'")
+    stat = torch.as_tensor(value, dtype=feature.dtype, device=feature.device)
+    if stat.ndim == 0:
+        return stat
+    if stat.numel() != feature.shape[-1]:
+        raise ValueError(
+            f"{name} has {stat.numel()} entries, but feature group has "
+            f"{feature.shape[-1]} channels"
+        )
+    return stat.reshape((1,) * (feature.ndim - 1) + (stat.numel(),))
+
+
+def _normalize_feature_tensor(feature, params, mode=None):
+    mode = str(mode or params.get("feature_normalization", "sample")).lower()
+    if mode in {"sample", "per_sample", "batch"}:
+        return NN_normalization(feature)
+    if mode in {"none", "identity", "raw"}:
+        return feature
+    if mode in {"global", "training", "train"}:
+        mean = _stat_tensor(params.get("feature_global_mean"), feature, "feature_global_mean")
+        std = _stat_tensor(params.get("feature_global_std"), feature, "feature_global_std")
+        return (feature - mean) / (std + _feature_eps(params))
+    raise ValueError(
+        f"Unsupported feature_normalization={mode!r}. "
+        "Expected sample, none, or global."
+    )
+
+
+def _log_feature_tensor(feature, params, mode=None):
+    return _normalize_feature_tensor(_log_magnitude(feature, params), params, mode=mode)
+
+
+def _expand_2d_material_field(value, params):
+    if value.ndim == 1:
+        value = value[:, None, None]
+    elif value.ndim == 4 and value.shape[-1] == 1:
+        value = value[..., 0]
+    if value.ndim != 3:
+        raise ValueError(f"Expected 2D material field with shape [batch, y, x]; got {value.shape}")
+    if value.shape[1] == 1 and value.shape[2] == 1:
+        value = value.expand(-1, int(params["num_y"]), int(params["num_x"]))
+    return value[:, :, :, None]
+
+
+def _material_feature_tensor(sigs, sigt, params, mode=None):
+    sigs = _expand_2d_material_field(sigs, params)
+    sigt = _expand_2d_material_field(sigt, params)
+    siga = torch.clamp(sigt - sigs, min=0.0)
+
+    features = [_log_magnitude(sigs, params), _log_magnitude(sigt, params), _log_magnitude(siga, params)]
+    if params.get("include_material_ratios", False):
+        denom = torch.clamp(torch.abs(sigt), min=_feature_eps(params))
+        features.extend((sigs / denom, siga / denom))
+
+    material_features = torch.cat(features, dim=-1)
+    mode = params.get("material_feature_normalization", mode or "none")
+    return _normalize_feature_tensor(material_features, params, mode=mode)
+
+
+def _invariant_norm_features(N, psi, dxpsi, dypsi, params):
     num_x = params["num_x"]
     num_y = params["num_y"]
     batch_size = params["batch_size"]
@@ -260,31 +416,60 @@ def preprocess_features(N, psi, dxpsi, dypsi, scattering, source, params):
     dpsi_norms = torch.zeros([batch_size, num_y, num_x, N + 1], device=device)
 
     index = 0
-
     for ell in range(N + 1):
         num_m = ell + 1
         ell_psi = psi[:, :, :, index : index + num_m]
-
-        norm_l_psi = torch.linalg.norm(ell_psi, ord=2, dim=-1)
-        psi_norms[..., ell] = norm_l_psi
+        psi_norms[..., ell] = torch.linalg.norm(ell_psi, ord=2, dim=-1)
 
         ell_dx = dxpsi[..., index : index + num_m]
         ell_dy = dypsi[..., index : index + num_m]
-
         dpsi_norms[..., ell] = torch.linalg.norm(
             torch.sqrt(torch.clamp(ell_dx**2 + ell_dy**2, min=1e-12)), ord=2, dim=-1
         )
-
         index += num_m
 
-    scattering_in = NN_normalization(scattering[:, :, :, None])
-    source_in = NN_normalization(source[:, :, :, None])
-    psi_in = NN_normalization(psi_norms)
-    dpsi_in = NN_normalization(dpsi_norms)
+    return psi_norms, dpsi_norms
 
-    inputs = torch.cat((psi_in, dpsi_in, scattering_in, source_in), dim=-1)
 
-    return inputs
+def preprocess_features(N, psi, dxpsi, dypsi, scattering, source, params, sigs=None, sigt=None):
+    variant = feature_variant(params)
+    psi_norms, dpsi_norms = _invariant_norm_features(N, psi, dxpsi, dypsi, params)
+    scattering_field = scattering[:, :, :, None]
+    source_field = source[:, :, :, None]
+
+    base_groups = (
+        NN_normalization(psi_norms),
+        NN_normalization(dpsi_norms),
+        NN_normalization(scattering_field),
+        NN_normalization(source_field),
+    )
+
+    log_mode = "none" if variant == "no_norm_log" else None
+    log_groups = tuple(
+        _log_feature_tensor(group, params, mode=log_mode)
+        for group in (psi_norms, dpsi_norms, scattering_field, source_field)
+    )
+
+    if variant == "baseline_norm":
+        groups = list(base_groups)
+    elif variant == "log_norm":
+        groups = list(log_groups)
+    elif variant == "baseline_plus_log":
+        groups = list(base_groups) + list(log_groups)
+    elif variant == "log_material_only":
+        groups = list(base_groups)
+    elif variant == "no_norm_log":
+        groups = list(log_groups)
+    else:
+        raise AssertionError(f"Unhandled feature_variant={variant!r}")
+
+    if _material_features_enabled(params):
+        if sigs is None or sigt is None:
+            raise ValueError("sigs and sigt are required for material feature channels")
+        material_mode = "none" if variant == "no_norm_log" else None
+        groups.append(_material_feature_tensor(sigs, sigt, params, mode=material_mode))
+
+    return torch.cat(groups, dim=-1)
 
 
 def NN_normalization(f):
@@ -295,7 +480,18 @@ def NN_normalization(f):
     return f_normalized
 
 
-def timestepping(psi0, filt_switch, NN_model, params, sigs, sigt, N, num_basis, source):
+def timestepping(
+    psi0,
+    filt_switch,
+    NN_model,
+    params,
+    sigs,
+    sigt,
+    N,
+    num_basis,
+    source,
+    return_filter_stats=False,
+):
 
     num_x = params["num_x"]
     num_y = params["num_y"]
@@ -314,15 +510,30 @@ def timestepping(psi0, filt_switch, NN_model, params, sigs, sigt, N, num_basis, 
     psi_prev = torch.zeros([batch_size, num_y, num_x, num_basis], device=device)
     psi_prev[:, :, :, 0] = psi0
 
-    if obj_idx == 1:
+    store_time_history = obj_idx in (1, 2, 3)
+    if store_time_history:
         psi_out = torch.zeros(
             [batch_size, num_t, num_y, num_x, num_basis], device=device
         )
 
     filter_coeffs = filter_coefficients(filter_order, N, num_basis, device=device)
     upwind_matrices = compute_upwind_matrices(N, device=device)
+    filter_strength_rollout_max = None
+
+    def update_filter_stats(sigf):
+        nonlocal filter_strength_rollout_max
+        if not return_filter_stats or filt_switch != 1:
+            return
+        current_max = sigf.detach().max()
+        if filter_strength_rollout_max is None:
+            filter_strength_rollout_max = current_max
+        else:
+            filter_strength_rollout_max = torch.maximum(
+                filter_strength_rollout_max, current_max
+            )
+
     for k in range(num_t):
-        psi1_update = PN_update(
+        psi1_update, sigf = PN_update(
             psi_prev,
             N,
             params,
@@ -334,7 +545,8 @@ def timestepping(psi0, filt_switch, NN_model, params, sigs, sigt, N, num_basis, 
             NN_model,
             filter_coeffs,
             upwind_matrices,
-        )[0]
+        )
+        update_filter_stats(sigf)
         psi1 = psi_prev + dt * psi1_update
         psi2_update, sigf = PN_update(
             psi1,
@@ -349,13 +561,20 @@ def timestepping(psi0, filt_switch, NN_model, params, sigs, sigt, N, num_basis, 
             filter_coeffs,
             upwind_matrices,
         )
+        update_filter_stats(sigf)
         psi = psi_prev + 0.5 * dt * (psi1_update + psi2_update)
         psi_prev = psi
 
-        if obj_idx == 1:
+        if store_time_history:
             psi_out[:, k, :, :, :] = psi
-    if obj_idx == 0:
+    if not store_time_history:
         psi_out = psi
+    if return_filter_stats:
+        if filter_strength_rollout_max is None:
+            filter_strength_rollout_max = torch.zeros((), device=device)
+        return psi_out, sigf[0, :, :], {
+            "filter_strength_rollout_max": filter_strength_rollout_max,
+        }
     return psi_out, sigf[0, :, :]
 
 
@@ -398,7 +617,15 @@ def PN_update(
     if filt_switch == 1:
         if filter_type == 0:
             inputs = preprocess_features(
-                N, sigt_psi, A_dxpsi, A_dypsi, scattering, source, params
+                N,
+                sigt_psi,
+                A_dxpsi,
+                A_dypsi,
+                scattering,
+                source,
+                params,
+                sigs=sigs,
+                sigt=sigt,
             )
             sigf = NN_model(inputs).squeeze(-1)
         if filter_type == 1:

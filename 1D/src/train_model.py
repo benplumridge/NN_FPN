@@ -5,8 +5,7 @@ from tqdm.auto import tqdm
 from funcs_common import (
     SimpleNN,
     SimpleNN_const,
-    obj_func,
-    obj_func_time,
+    nn_feature_count,
     timestepping,
     compute_cell_average,
 )
@@ -38,6 +37,10 @@ def _sqrt_loss(loss_value):
     return float("nan")
 
 
+def _tensor_p95(value):
+    return torch.quantile(value.reshape(-1), 0.95)
+
+
 def _set_progress_postfix(progress, loss_value, best_loss):
     progress.set_postfix(
         {
@@ -47,6 +50,46 @@ def _set_progress_postfix(progress, loss_value, best_loss):
         },
         refresh=True,
     )
+
+
+def _set_epoch_learning_rate(opt, base_lr, epoch, num_epochs, params):
+    scheduler = str(
+        params.get("lr_scheduler", params.get("learning_rate_scheduler", "none"))
+    ).lower()
+    if scheduler in {"", "none", "constant"}:
+        return base_lr
+    if scheduler not in {"cosine", "cosine_warmup", "warmup_cosine"}:
+        raise ValueError(
+            f"Unsupported lr_scheduler={scheduler!r}. "
+            "Expected one of: none, constant, cosine."
+        )
+
+    warmup_fraction = float(
+        params.get("lr_warmup_fraction", params.get("warmup_fraction", 0.0))
+    )
+    min_factor = float(params.get("lr_min_factor", 0.0))
+    if not 0.0 <= warmup_fraction <= 1.0:
+        raise ValueError("lr_warmup_fraction must be in [0, 1]")
+    if not 0.0 <= min_factor <= 1.0:
+        raise ValueError("lr_min_factor must be in [0, 1]")
+
+    if num_epochs <= 1:
+        factor = 1.0
+    else:
+        warmup_epochs = math.ceil(num_epochs * warmup_fraction)
+        warmup_epochs = min(warmup_epochs, max(num_epochs - 1, 1))
+        if warmup_epochs > 0 and epoch < warmup_epochs:
+            factor = (epoch + 1) / warmup_epochs
+        else:
+            decay_steps = max(1, num_epochs - warmup_epochs - 1)
+            decay_epoch = min(max(epoch - warmup_epochs, 0), decay_steps)
+            cosine = 0.5 * (1.0 + math.cos(math.pi * decay_epoch / decay_steps))
+            factor = min_factor + (1.0 - min_factor) * cosine
+
+    lr = base_lr * factor
+    for group in opt.param_groups:
+        group["lr"] = lr
+    return lr
 
 
 def _training_data_mode(params):
@@ -239,19 +282,43 @@ def _sample_augmented_training_batch(params, device):
     return psi0, source, sigs, sigt, step_params, final_time
 
 
+def _mean_square_per_sample(value):
+    dims = tuple(range(1, value.ndim))
+    return torch.mean(value**2, dim=dims)
+
+
+def _relative_mse_per_sample(error, reference, eps=1e-12):
+    numerator = _mean_square_per_sample(error)
+    denominator = _mean_square_per_sample(reference).clamp_min(eps)
+    return torch.mean(numerator / denominator)
+
+
 def _training_loss(psi, exact, N, obj_idx, params):
+    eps = float(params.get("relative_loss_eps", 1e-12))
     if obj_idx == 0:
-        loss = obj_func(psi[:, :, 0] - exact[:, :, 0])
+        loss = _relative_mse_per_sample(
+            psi[:, :, 0] - exact[:, :, 0], exact[:, :, 0], eps
+        )
     elif obj_idx == 1:
-        loss = obj_func(psi - exact[:, :, : N + 1])
+        loss = _relative_mse_per_sample(
+            psi - exact[:, :, : N + 1], exact[:, :, : N + 1], eps
+        )
     elif obj_idx == 2:
-        loss = obj_func_time(psi[:, :, :, 0] - exact[:, :, :, 0])
+        loss = _relative_mse_per_sample(
+            psi[:, :, :, 0] - exact[:, :, :, 0], exact[:, :, :, 0], eps
+        )
+    elif obj_idx == 3:
+        loss = _relative_mse_per_sample(
+            psi[:, :, :, 0] - exact[:, :, :, 0], exact[:, :, :, 0], eps
+        )
     else:
         raise ValueError(f"Unsupported obj_idx={obj_idx}")
 
     aux_weight = float(params.get("aux_moment_loss_weight", 0.0))
     if aux_weight > 0 and obj_idx == 0:
-        loss = loss + aux_weight * obj_func(psi - exact[:, :, : N + 1])
+        loss = loss + aux_weight * _relative_mse_per_sample(
+            psi - exact[:, :, : N + 1], exact[:, :, : N + 1], eps
+        )
     return loss
 
 
@@ -276,6 +343,9 @@ def training(params):
     device = params["device"]
     filter_type = params["filter_type"]
     obj_idx = params["obj_idx"]
+    if filter_type in (1, 2):
+        params["num_features"] = nn_feature_count(N, params)
+        num_features = params["num_features"]
 
     if filter_type in (1, 2):
         NN_model = SimpleNN(num_features, num_hidden, N)
@@ -331,6 +401,7 @@ def training(params):
     )
 
     for l in progress:
+        current_lr = _set_epoch_learning_rate(opt, learning_rate, l, num_epochs, params)
         opt.zero_grad()
         if training_data == "paper":
             sigs = torch.rand(batch_size, device=device) * sigs_max
@@ -362,7 +433,7 @@ def training(params):
             batch_size,
             device,
         )[0]
-        psi, sigf = timestepping(
+        psi, sigf, filter_stats = timestepping(
             batch_psi0,
             filter_type,
             NN_model,
@@ -373,6 +444,7 @@ def training(params):
             batch_source,
             batch_size,
             device,
+            return_filter_stats=True,
         )
 
         loss = _training_loss(psi, exact, N, obj_idx, params)
@@ -394,13 +466,19 @@ def training(params):
             loss_value = None
 
         if wandb_run is not None and should_report:
+            sigs_detached = sigs.detach()
+            sigt_detached = sigt.detach()
+            sigma_a_detached = sigt_detached - sigs_detached
             metrics = {
                 "train/loss": loss_value,
                 "train/sqrt_loss": _sqrt_loss(loss_value),
-                "train/sigma_s_mean": sigs.detach().mean().item(),
-                "train/sigma_t_mean": sigt.detach().mean().item(),
-                "train/sigma_a_mean": (sigt - sigs).detach().mean().item(),
+                "train/sigma_s_mean": sigs_detached.mean().item(),
+                "train/sigma_t_mean": sigt_detached.mean().item(),
+                "train/sigma_t_max": sigt_detached.max().item(),
+                "train/sigma_t_p95": _tensor_p95(sigt_detached).item(),
+                "train/sigma_a_mean": sigma_a_detached.mean().item(),
                 "train/time_horizon": final_time,
+                "train/learning_rate": current_lr,
                 "train/epoch": l,
             }
             if filter_type in (1, 2, 3):
@@ -410,6 +488,10 @@ def training(params):
                         "train/filter_strength_mean": sigf_detached.mean().item(),
                         "train/filter_strength_min": sigf_detached.min().item(),
                         "train/filter_strength_max": sigf_detached.max().item(),
+                        "train/filter_strength_p95": _tensor_p95(sigf_detached).item(),
+                        "train/filter_strength_rollout_max": filter_stats[
+                            "filter_strength_rollout_max"
+                        ].item(),
                     }
                 )
             log_metrics(wandb_run, metrics, l, params, final=final_epoch)

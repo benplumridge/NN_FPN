@@ -34,8 +34,7 @@ IC_NAMES = {
     1: "Vanishing_cross_section",
     2: "Discontinuous_cross_section",
 }
-Ns = [3, 7, 9]
-# Ns = [3]
+Ns = [int(N) for N in params.get("Ns", [3, 7, 9])]
 
 filter_type = params["filter_type"]
 if filter_type == 1:

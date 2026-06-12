@@ -16,6 +16,7 @@ from IC import (
 from funcs_common import (
     obj_func,
     obj_func_time,
+    obj_func_time_average,
     timestepping,
     compute_cell_average,
     rotation_test,
@@ -195,6 +196,23 @@ def testing(params):
             flux_errf = torch.sqrt(
                 obj_func_time(FPN[:, :, :, :, 0] - exact[:, :, :, :, 0])
                 / obj_func_time(exact[:, :, :, :, 0])
+            )
+        elif obj_idx in (2, 3):
+            error0 = torch.sqrt(
+                obj_func_time_average(PN - exact[:, :, :, :, :num_basis])
+                / obj_func_time_average(exact[:, :, :, :, :num_basis])
+            )
+            errorf = torch.sqrt(
+                obj_func_time_average(FPN - exact[:, :, :, :, :num_basis])
+                / obj_func_time_average(exact[:, :, :, :, :num_basis])
+            )
+            flux_err0 = torch.sqrt(
+                obj_func_time_average(PN[:, :, :, :, 0] - exact[:, :, :, :, 0])
+                / obj_func_time_average(exact[:, :, :, :, 0])
+            )
+            flux_errf = torch.sqrt(
+                obj_func_time_average(FPN[:, :, :, :, 0] - exact[:, :, :, :, 0])
+                / obj_func_time_average(exact[:, :, :, :, 0])
             )
 
     total_error_reduction = errorf / error0
