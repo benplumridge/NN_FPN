@@ -1,0 +1,90 @@
+workflow:
+  target: 1d
+  ansatz: both
+  phase: all
+  train: true
+  simulate: true
+  mpl_backend: Agg
+  overwrite_results: true
+  wandb:
+    enabled: false
+    project: NN_FPN
+    mode: disabled
+    group: null
+    tags:
+    - N9
+    - sweep
+    log_interval: 1
+    name_template: 1d-nn-sweep-N{N}-{model_tag}
+1d:
+  enabled: true
+  filter_types:
+    nn: 1
+    constant: 3
+  train:
+    Ns:
+    - 9
+    num_replicates: 10
+    hidden_width: 256
+    nn_weight_decay: 1.0e-06
+    constant_weight_decay: 0.0001
+    params:
+      num_IC: 4
+      batch_size: 32
+      num_epochs: 100
+      learning_rate: 0.01
+      lr_scheduler: constant
+      lr_warmup_fraction: 0.0
+      lr_min_factor: 0.0
+      momentum_factor: 0.9
+      sigs_max: 1
+      GD_optimizer: Adam
+      tt_flag: 0
+      IC_idx: 0
+      device: auto
+      ablation_idx: 0
+      feature_variant: baseline_norm
+      feature_normalization: none
+      material_feature_normalization: sample
+      feature_log_scale: 1.0
+      feature_log_clip:
+      - 0.0
+      - 40.0
+      feature_eps: 1.0e-08
+      include_material_scale_features: true
+      include_material_ratios: false
+      obj_idx: 0
+      training_data: augmented
+      model_tag: best_sweep_n9_10x
+      training_time_horizons:
+      - 0.25
+      - 0.5
+      - 1.0
+      aux_moment_loss_weight: 0.0
+      relative_loss_eps: 1.0e-12
+  simulate:
+    scripts:
+    - scripts/test_iters.py
+    - scripts/test_iters_reeds.py
+    - scripts/test_all.py
+    result_dir_template: results_{label}_best_N9_10x
+    params:
+      batch_size: 1
+      tt_flag: 1
+      device: auto
+      ablation_idx: 0
+      feature_variant: baseline_norm
+      feature_normalization: none
+      material_feature_normalization: sample
+      feature_log_scale: 1.0
+      feature_log_clip:
+      - 0.0
+      - 40.0
+      feature_eps: 1.0e-08
+      include_material_scale_features: true
+      include_material_ratios: false
+      model_tag: best_sweep_n9_10x
+      Ns:
+      - 9
+      num_tests: 10
+      reeds_num_x: 512

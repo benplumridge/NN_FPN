@@ -306,4 +306,50 @@ Each panel shows the saved scalar-flux/filter plot from the corresponding 10-rep
 \caption{Reeds test case.}
 \end{figure}
 
+
+\clearpage
+\section*{Paper-setting constant-filter baseline}
+As a third baseline, the constant-filter ansatz was trained with the original
+paper-style 1D training sampler rather than the augmented sweep-selected sampler.
+The reported values are the same scalar-flux error ratio \(r_N\), averaged over
+10 independently trained constant-filter replicas.
+
+\subsection*{Learning hyperparameters}
+\begin{center}
+{\scriptsize
+\begin{tabular}{c c c c c c c c c}
+\toprule
+\(N\) & ansatz & replicas & training data & batch & epochs & lr schedule & weight decay & horizons \\
+\midrule
+3 & constant & 10 & paper & 64 & 200 & cosine, lr \(0.1\), warmup \(0.05\) & \(10^{-6}\) & \(\{0.25,0.5,1.0\}\) \\
+7 & constant & 10 & paper & 64 & 200 & cosine, lr \(0.1\), warmup \(0.05\) & \(10^{-6}\) & \(\{0.25,0.5,1.0\}\) \\
+9 & constant & 10 & paper & 64 & 200 & cosine, lr \(0.1\), warmup \(0.05\) & \(10^{-6}\) & \(\{0.25,0.5,1.0\}\) \\
+\bottomrule
+\end{tabular}
+}
+\end{center}
+All rows use Adam, \(\texttt{num\_IC}=4\), \(\texttt{sigs\_max}=1\), final-time
+scalar-flux loss, \(\texttt{aux\_moment\_loss\_weight}=0\), and model tag
+\texttt{paper\_constant\_baseline}.
+
+\subsection*{Evaluation results}
+\begin{center}
+{\scriptsize
+\begin{tabular}{l c c c c}
+\toprule
+Problem & \(t_f\) & \(\rconst{3}\) & \(\rconst{7}\) & \(\rconst{9}\) \\
+\midrule
+Gaussian & 0.5 & \(0.5772 \pm 0.0009\) & \(0.5325 \pm 0.0012\) & \(0.5344 \pm 0.0013\) \\
+Gaussian & 1.0 & \(0.3636 \pm 0.0010\) & \(0.2790 \pm 0.0013\) & \(0.2793 \pm 0.0014\) \\
+Vanishing cross section & 0.5 & \(0.6267 \pm 0.0008\) & \(0.5252 \pm 0.0012\) & \(0.5330 \pm 0.0014\) \\
+Vanishing cross section & 1.0 & \(0.2975 \pm 0.0012\) & \(0.2841 \pm 0.0014\) & \(0.2734 \pm 0.0015\) \\
+Discontinuous cross section & 0.5 & \(0.6114 \pm 0.0008\) & \(0.5234 \pm 0.0012\) & \(0.5311 \pm 0.0014\) \\
+Discontinuous cross section & 1.0 & \(0.2942 \pm 0.0012\) & \(0.2772 \pm 0.0014\) & \(0.2703 \pm 0.0015\) \\
+Reeds & 5.0 & \(0.2613 \pm 0.0002\) & \(0.2502 \pm 0.0002\) & \(0.2438 \pm 0.0002\) \\
+Reeds & 10.0 & \(0.5550 \pm 0.0000\) & \(0.4007 \pm 0.0006\) & \(0.3242 \pm 0.0005\) \\
+\bottomrule
+\end{tabular}
+}
+\end{center}
+
 \end{document}

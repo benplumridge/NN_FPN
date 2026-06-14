@@ -1,0 +1,3 @@
+table,ansatz,model_tag,ic_idx,problem,final_time,N,mean_flux_error_reduction,std_flux_error_reduction,num_tests,paper_table_cell
+1d_reeds,constant,paper_constant_baseline,6,Reeds,5.0,9,0.24378792941570282,0.00017776254389900714,10,0.2438 ± 0.0002
+1d_reeds,constant,paper_constant_baseline,6,Reeds,10.0,9,0.32417434453964233,0.000471703358925879,10,0.3242 ± 0.0005

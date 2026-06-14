@@ -1,0 +1,7 @@
+table,ansatz,model_tag,ic_idx,problem,final_time,N,mean_flux_error_reduction,std_flux_error_reduction,num_tests,paper_table_cell
+1d_standard,nn,best_sweep_n7_10x,0,Gaussian,0.5,7,0.1089199036359787,0.016925107687711716,10,0.1089 ± 0.0169
+1d_standard,nn,best_sweep_n7_10x,0,Gaussian,1.0,7,0.10361979901790619,0.039995815604925156,10,0.1036 ± 0.0400
+1d_standard,nn,best_sweep_n7_10x,1,Vanishing_cross_section,0.5,7,0.08810808509588242,0.01996404491364956,10,0.0881 ± 0.0200
+1d_standard,nn,best_sweep_n7_10x,1,Vanishing_cross_section,1.0,7,0.08955691009759903,0.040096525102853775,10,0.0896 ± 0.0401
+1d_standard,nn,best_sweep_n7_10x,2,Discontinuous_cross_section,0.5,7,0.10496841371059418,0.020750898867845535,10,0.1050 ± 0.0208
+1d_standard,nn,best_sweep_n7_10x,2,Discontinuous_cross_section,1.0,7,0.14788909256458282,0.038249239325523376,10,0.1479 ± 0.0382
