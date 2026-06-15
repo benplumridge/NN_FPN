@@ -83,12 +83,12 @@ class SimpleNN_const(nn.Module):
 class SimpleNN(nn.Module):
     def __init__(self, num_features, num_hidden):
         super(SimpleNN, self).__init__()
+        self.input_norm = nn.BatchNorm1d(num_features)
         self.hidden1 = nn.Linear(num_features, num_hidden)  # (inputs,hidden)
         self.hidden2 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
         self.hidden3 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
         self.hidden4 = nn.Linear(num_hidden, num_hidden)  # (inputs,hidden)
 
-        # self.bn1 = nn.LayerNorm(num_features)
         self.bn2 = nn.LayerNorm(num_hidden)
         self.bn3 = nn.LayerNorm(num_hidden)
         self.bn4 = nn.LayerNorm(num_hidden)
@@ -101,7 +101,7 @@ class SimpleNN(nn.Module):
         original_shape = x.shape
         x = torch.flatten(x, start_dim=0, end_dim=2)
         # print("Flattened input shape:", x.shape)  # Debugging line
-        # x = self.bn1(x)
+        x = self.input_norm(x)
         x = torch.tanh(self.hidden1(x))  # Activation hidden layer
         x = self.bn2(x)
         x = torch.tanh(self.hidden2(x)) + x  # Activation hidden layer
@@ -433,41 +433,40 @@ def _material_feature_tensor(sigs, sigt, params, mode=None):
     return _normalize_feature_tensor(material_features, params, mode=mode)
 
 
-def _invariant_norm_features(N, psi, dxpsi, dypsi, params):
+def _invariant_norm_features(N, advective_term, total_term, params):
     num_x = params["num_x"]
     num_y = params["num_y"]
     batch_size = params["batch_size"]
     device = params["device"]
-    psi_norms = torch.zeros([batch_size, num_y, num_x, N + 1], device=device)
-    dpsi_norms = torch.zeros([batch_size, num_y, num_x, N + 1], device=device)
+    advective_norms = torch.zeros([batch_size, num_y, num_x, N + 1], device=device)
+    total_norms = torch.zeros([batch_size, num_y, num_x, N + 1], device=device)
 
     index = 0
     for ell in range(N + 1):
         num_m = ell + 1
-        ell_psi = psi[:, :, :, index : index + num_m]
-        psi_norms[..., ell] = torch.linalg.norm(ell_psi, ord=2, dim=-1)
-
-        ell_dx = dxpsi[..., index : index + num_m]
-        ell_dy = dypsi[..., index : index + num_m]
-        dpsi_norms[..., ell] = torch.linalg.norm(
-            torch.sqrt(torch.clamp(ell_dx**2 + ell_dy**2, min=1e-12)), ord=2, dim=-1
-        )
+        ell_advective = advective_term[:, :, :, index : index + num_m]
+        ell_total = total_term[:, :, :, index : index + num_m]
+        advective_norms[..., ell] = torch.linalg.norm(ell_advective, ord=2, dim=-1)
+        total_norms[..., ell] = torch.linalg.norm(ell_total, ord=2, dim=-1)
         index += num_m
 
-    return psi_norms, dpsi_norms
+    return advective_norms, total_norms
 
 
 def preprocess_features(
     N, psi, dxpsi, dypsi, scattering, source, params, sigs=None, sigt=None
 ):
     variant = feature_variant(params)
-    psi_norms, dpsi_norms = _invariant_norm_features(N, psi, dxpsi, dypsi, params)
-    scattering_field = scattering[:, :, :, None]
+    advective_term = dxpsi + dypsi
+    advective_norms, total_norms = _invariant_norm_features(
+        N, advective_term, psi, params
+    )
+    scattering_field = -scattering[:, :, :, None]
     source_field = source[:, :, :, None]
 
     base_groups = (
-        NN_normalization(psi_norms),
-        NN_normalization(dpsi_norms),
+        NN_normalization(advective_norms),
+        NN_normalization(total_norms),
         NN_normalization(scattering_field),
         NN_normalization(source_field),
     )
@@ -475,7 +474,7 @@ def preprocess_features(
     log_mode = "none" if variant == "no_norm_log" else None
     log_groups = tuple(
         _log_feature_tensor(group, params, mode=log_mode)
-        for group in (psi_norms, dpsi_norms, scattering_field, source_field)
+        for group in (advective_norms, total_norms, scattering_field, source_field)
     )
 
     if variant == "baseline_norm":

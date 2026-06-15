@@ -48,6 +48,7 @@ def testing(params):
     show_sym_errors = params["show_sym_errors"]
     show_slices = params["show_slices"]
     obj_idx = params["obj_idx"]
+    metric_obj_idx = obj_idx
 
     if filter_type in {0, 1}:
         model_filename = load_model(N, filter_type)
@@ -143,6 +144,8 @@ def testing(params):
                 exact_np = np.load("exact_solns/hohlraum_37_T15.npy")
             elif T == 3.0:
                 exact_np = np.load("exact_solns/hohlraum_37_T30.npy")
+            else:
+                raise ValueError(f"No hohlraum reference configured for T={T}")
             exact = torch.zeros(
                 batch_size, num_y, num_x, num_basis_exact, device=device
             )
@@ -153,6 +156,8 @@ def testing(params):
                 exact_np = np.load("exact_solns/lattice_37_T16.npy")
             elif T == 3.2:
                 exact_np = np.load("exact_solns/lattice_37_T32.npy")
+            else:
+                raise ValueError(f"No lattice reference configured for T={T}")
             exact = torch.zeros(
                 batch_size, num_y, num_x, num_basis_exact, device=device
             )
@@ -164,12 +169,17 @@ def testing(params):
             )[0]
             np.save("P37", exact)
 
+        if exact.ndim == 4 and metric_obj_idx in (1, 2, 3):
+            metric_obj_idx = 0
+            params = dict(params)
+            params["obj_idx"] = 0
+
         PN = timestepping(psi0, 0, 0, params, sigs, sigt, N, num_basis, source)[0]
         FPN, sigf = timestepping(
             psi0, 1, NN_model, params, sigs, sigt, N, num_basis, source
         )
 
-        if obj_idx == 0:
+        if metric_obj_idx == 0:
             error0 = torch.sqrt(
                 obj_func(PN - exact[:, :, :, :num_basis])
                 / obj_func(exact[:, :, :, :num_basis])
@@ -186,7 +196,7 @@ def testing(params):
                 obj_func(FPN[:, :, :, 0] - exact[:, :, :, 0])
                 / obj_func(exact[:, :, :, 0])
             )
-        elif obj_idx == 1:
+        elif metric_obj_idx == 1:
             error0 = torch.sqrt(
                 obj_func_time(PN - exact[:, :, :, :, :num_basis])
                 / obj_func_time(exact[:, :, :, :, :num_basis])
@@ -203,7 +213,7 @@ def testing(params):
                 obj_func_time(FPN[:, :, :, :, 0] - exact[:, :, :, :, 0])
                 / obj_func_time(exact[:, :, :, :, 0])
             )
-        elif obj_idx in (2, 3):
+        elif metric_obj_idx in (2, 3):
             error0 = torch.sqrt(
                 obj_func_time_average(PN - exact[:, :, :, :, :num_basis])
                 / obj_func_time_average(exact[:, :, :, :, :num_basis])

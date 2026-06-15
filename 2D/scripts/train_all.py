@@ -5,6 +5,7 @@ import torch
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 from params_common import params
+from funcs_common import nn_feature_count
 from train_model import training
 
 
@@ -22,6 +23,7 @@ params["sigs_max"] = 1
 params["filter_type"] = 0
 params["tt_flag"] = 0
 params["IC_idx"] = 0
+params["obj_idx"] = 0
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 params["device"] = device
 filter_type = params["filter_type"]
@@ -45,7 +47,7 @@ for N in [3, 5, 7, 9]:
         params["init_bias"] = init_bias[2]
     elif N == 9:
         params["init_bias"] = init_bias[3]
-    num_features = 2 * (N + 1) + 2
+    num_features = nn_feature_count(N, params)
     num_basis = (N + 1) * (N + 2) // 2
     params["num_features"] = num_features
     params["num_basis"] = num_basis

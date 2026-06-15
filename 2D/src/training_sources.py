@@ -54,7 +54,7 @@ def two_rect_source(num_x, num_y, x, y):
 def gaussian_source(num_x, num_y, x, y):
     cx = 0
     cy = 0
-    s = 0.05
+    s = 0.03
     source = torch.zeros([num_y + 1, num_x + 1], dtype=torch.float32)
     scale = 1 / (s * torch.sqrt(torch.tensor(2 * np.pi)))
     for l in range(0, num_y + 1):
@@ -69,8 +69,8 @@ def gaussian_source(num_x, num_y, x, y):
 def pulse_source(num_x, num_y, x, y):
 
     source = torch.zeros([num_y + 1, num_x + 1])
-    c = 10
-    rad = 0.1
+    c = 1
+    rad = 0.05
     for l in range(num_y + 1):
         for m in range(num_x + 1):
             r = torch.sqrt(x[m] ** 2 + y[l] ** 2)

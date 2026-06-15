@@ -54,7 +54,7 @@ def step(num_x, num_y, x, y):
     for l in range(num_y + 1):
         for m in range(num_x + 1):
             if x_min <= x[m] <= x_max and y_min <= y[l] <= y_max:
-                psi0[l, m] = 20
+                psi0[l, m] = 1
 
     sigt = sigs
     return psi0, source, sigs, sigt
@@ -75,7 +75,7 @@ def disc_source(num_x, num_y, x, y):
     for l in range(num_y + 1):
         for m in range(num_x + 1):
             if step_x_min <= x[m] <= step_x_max and step_y_min <= y[l] <= step_y_max:
-                psi0[l, m] = 10
+                psi0[l, m] = 1
 
             if (
                 source_x_min <= torch.abs(x[m]) <= source_x_max

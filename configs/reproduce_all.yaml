@@ -107,6 +107,7 @@ workflow:
       GD_optimizer: Adam
       tt_flag: 0
       IC_idx: 0
+      obj_idx: 0
       device: auto
       feature_variant: baseline_norm
       feature_normalization: sample
@@ -130,6 +131,7 @@ workflow:
     params:
       batch_size: 1
       tt_flag: 1
+      obj_idx: 0
       device: auto
       feature_variant: baseline_norm
       feature_normalization: sample

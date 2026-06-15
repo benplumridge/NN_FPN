@@ -6,6 +6,7 @@ import torch
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 from params_common import params, resolve_device
+from funcs_common import nn_feature_count
 from test_model import testing
 
 
@@ -21,6 +22,7 @@ from test_model import testing
 
 params["batch_size"] = 1
 params["tt_flag"] = 1
+params["obj_idx"] = 0
 params["device"] = resolve_device(params.get("device"))
 
 N_exact = 37
@@ -79,7 +81,7 @@ for T in T_gauss:
     results[(params["IC_idx"], T)] = {}
 
     for N in Ns:
-        num_features = 2 * (N + 1) + 2
+        num_features = nn_feature_count(N, params)
         num_hidden = num_features // 2
         num_basis = (N + 1) * (N + 2) // 2
 
@@ -134,7 +136,7 @@ for T in T_latt:
 
     for N in Ns:
         num_basis = (N + 1) * (N + 2) // 2
-        num_features = 2 * (N + 1) + 2
+        num_features = nn_feature_count(N, params)
         num_hidden = num_features // 2
 
         params["num_basis"] = num_basis

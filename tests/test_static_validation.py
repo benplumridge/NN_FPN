@@ -131,6 +131,7 @@ class StaticValidationTests(unittest.TestCase):
 
     def test_default_modes_match_nn_reproduction(self):
         self.assertRegex(read_source("1D/src/params_common.py"), r"(?m)^obj_idx = 0$")
+        self.assertRegex(read_source("2D/src/params_common.py"), r"(?m)^obj_idx = 0$")
         self.assertRegex(
             read_source("2D/src/params_common.py"), r"(?m)^filter_type = 0$"
         )
@@ -152,7 +153,10 @@ class StaticValidationTests(unittest.TestCase):
 
         source_2d = read_source("2D/src/funcs_common.py")
         self.assertIn("def _invariant_norm_features", source_2d)
-        self.assertIn("psi_norms, dpsi_norms = _invariant_norm_features", source_2d)
+        self.assertIn("advective_term = dxpsi + dypsi", source_2d)
+        self.assertIn("advective_norms, total_norms = _invariant_norm_features", source_2d)
+        self.assertIn("scattering_field = -scattering", source_2d)
+        self.assertIn("self.input_norm = nn.BatchNorm1d(num_features)", source_2d)
         self.assertIn("sigs=sigs", source_2d)
         self.assertIn("sigt=sigt", source_2d)
 
@@ -201,6 +205,10 @@ class StaticValidationTests(unittest.TestCase):
         self.assertIn(
             'params["learning_rate"] = 1e-2', read_source("2D/scripts/train_all.py")
         )
+        self.assertIn('params["obj_idx"] = 0', read_source("2D/scripts/train_all.py"))
+        self.assertIn(
+            'params["obj_idx"] = 0', read_source("2D/scripts/train_driver.py")
+        )
 
     def test_reproduction_scripts_have_consistent_imports_and_grid_setup(self):
         self.assertIn(
@@ -213,6 +221,10 @@ class StaticValidationTests(unittest.TestCase):
         )
         self.assertIn(
             'params["x_edges"] = x_edges', read_source("2D/scripts/test_all.py")
+        )
+        self.assertIn("nn_feature_count", read_source("2D/scripts/test_all.py"))
+        self.assertIn(
+            'params["x_edges"] = x_edges', read_source("2D/scripts/test_all_hohl.py")
         )
 
     def test_plot_entry_points_create_expected_outputs(self):

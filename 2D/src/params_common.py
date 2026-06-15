@@ -25,7 +25,7 @@ T = 0.5
 # 1 - scalar flux in time, summed over time steps
 # 2 - scalar flux in time, averaged over time steps
 # 3 - scalar flux in time, averaged over time steps (1D-compatible alias)
-obj_idx = 1
+obj_idx = 0
 
 filter_order = 4
 
