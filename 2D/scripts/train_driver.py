@@ -5,6 +5,7 @@ import torch
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 from params_common import params
+from funcs_common import nn_feature_count
 from train_model import training
 
 
@@ -16,8 +17,12 @@ params["num_epochs"] = 200
 params["learning_rate"] = 1e-2
 params["momentum_factor"] = 0.9
 params["sigs_max"] = 1
+params["filter_type"] = 0
 params["tt_flag"] = 0
 params["IC_idx"] = 0
+params["obj_idx"] = 0
+params["num_features"] = nn_feature_count(params["N"], params)
+params["num_hidden"] = params["num_features"] // 2
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 params["device"] = device
 

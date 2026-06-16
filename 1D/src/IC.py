@@ -18,6 +18,7 @@ def gaussian_training(num_x, x):
 
     return z, sigs, sigt, source
 
+
 def gaussian_testing(num_x, x):
     z = torch.zeros([num_x + 1])
     c = 0
@@ -31,6 +32,7 @@ def gaussian_testing(num_x, x):
     sigt = sigs
 
     return z, sigs, sigt, source
+
 
 def heaviside(num_x, x):
     z = torch.zeros([num_x + 1])
@@ -62,7 +64,7 @@ def disc_cs(num_x, x):
     sigs = torch.ones(num_x + 1)
     source = torch.zeros([num_x + 1])
     z[(x > -0.2) & (x < 0.2)] = 1
-    sigs[((x >= -0.65) & (x <= -0.35)) | ((x >= 0.35) & (x <= 0.65))] = 0.02
+    sigs[((x >= -0.65) & (x <= -0.35)) | ((x >= 0.35) & (x <= 0.65))] = 0.2
     sigt = sigs
 
     return z, sigs, sigt, source
@@ -94,7 +96,7 @@ def vanishing_cs(num_x, x):
     sigs = 100 * x**4
     sigt = sigs
 
-    z[(x > -0.2) & (x < 0.2)] = 100
+    z[(x > -0.2) & (x < 0.2)] = 1
     return z, sigs, sigt, source
 
 

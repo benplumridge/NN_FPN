@@ -1,0 +1,250 @@
+
+\documentclass[10pt]{article}
+\usepackage[margin=0.75in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{graphicx}
+\usepackage{bm}
+\usepackage{hyperref}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.45em}
+\renewcommand{\arraystretch}{1.14}
+
+\newcommand{\PN}{\ensuremath{P_N}}
+\newcommand{\FPN}{\ensuremath{FP_N}}
+\newcommand{\rNN}[1]{\ensuremath{r_{#1}^{\mathrm{NN}}}}
+\newcommand{\rAugConst}[1]{\ensuremath{r_{#1}^{\mathrm{const,aug}}}}
+\newcommand{\rPaperConst}[1]{\ensuremath{r_{#1}^{\mathrm{const,paper}}}}
+\newcommand{\cell}[1]{\(#1\)}
+\newcommand{\cellbest}[1]{\(\bm{#1}\)}
+
+\title{Manuscript Add-On Sections for the Updated Learning Workflow}
+\author{NN\_FPN repository notes}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Updated learning workflow for the filtered \texorpdfstring{$P_N$}{PN} model}
+The original filtered \(\PN\) solver is retained, but the learned filter is now
+trained and selected by a sweep-driven workflow.  For a moment order \(N\), let
+\(u_i^n=(u_{i,0}^n,\ldots,u_{i,N}^n)^\top\) denote the cell-centered moment vector
+and let \(\phi_i^n=u_{i,0}^n\) denote the scalar flux.  The neural filter is a
+cellwise nonnegative map
+\[
+  \sigma_{f,i}^n = F_{\theta,N}(x_i^n) \ge 0,
+\]
+where \(x_i^n\) is the feature vector defined below.  The constant-filter
+baselines use a single learned scalar \(c_N\ge 0\), i.e.
+\[
+  \sigma_{f,i}^n = c_N .
+\]
+The learned filter strength multiplies the same filter coefficients used in the
+filtered \(P_N\) update, so the discretization and evaluation metric remain those
+of the manuscript.
+
+\subsection{Training objective}
+For a training draw \(\omega\), let \(\phi^{\FPN}_{N,\theta}(x_i,T_\omega;\omega)\)
+be the filtered \(P_N\) scalar flux produced by the learned filter and let
+\(\phi^{\mathrm{ex}}(x_i,T_\omega;\omega)\) be the high-order reference solution.
+The updated neural-network and constant-filter sweep models minimize the
+relative final-time scalar-flux loss
+\[
+  \mathcal{L}_N(\theta)
+  = \frac{1}{B}\sum_{b=1}^{B}
+    \frac{\frac{1}{n_x}\sum_{i=1}^{n_x}
+      \left(\phi^{\FPN}_{N,\theta}(x_i,T_b;\omega_b)
+      -\phi^{\mathrm{ex}}(x_i,T_b;\omega_b)\right)^2}
+    {\max\!\left(\frac{1}{n_x}\sum_{i=1}^{n_x}
+      \left(\phi^{\mathrm{ex}}(x_i,T_b;\omega_b)\right)^2,\varepsilon\right)},
+  \qquad \varepsilon=10^{-12} .
+\]
+No auxiliary moment loss is used in the reported updated runs.  The scalar
+metric reported in the result tables is unchanged from the manuscript,
+\[
+  r_N =
+  \frac{\left\|\phi^{\FPN}_N-\phi^{\mathrm{ex}}\right\|_2}
+       {\left\|\phi^{P_N}-\phi^{\mathrm{ex}}\right\|_2},
+\]
+so smaller values indicate stronger error reduction relative to the unfiltered
+\(P_N\) solution.
+
+\subsection{Training distributions}
+The paper-setting baseline uses the original four-family training distribution,
+which combines Gaussian, Heaviside, bump, and discontinuous-source initial/source
+families with random homogeneous material coefficients.  The updated
+sweep-selected workflow replaces this with an augmented distribution
+\(\mathcal{D}_{\mathrm{aug}}\).  A draw
+\(\omega\sim\mathcal{D}_{\mathrm{aug}}\) samples the initial condition, source,
+and material profile from a mixture that includes Gaussian, discontinuous,
+vanishing-cross-section-like, source-driven, and Reeds-like cases.  This changes
+the training ensemble only; all reported test cases and the definition of
+\(r_N\) are unchanged.
+
+\section{Input feature map replacing the baseline network inputs}
+For each cell \(i\), define the discrete transport residual and material/source
+terms
+\[
+  d_i = \frac{(A u)_{i+1/2}-(A u)_{i-1/2}}{\Delta x}, \qquad
+  c_i = \sigma_{t,i}u_i, \qquad
+  s_i = \sigma_{s,i}u_{i,0}, \qquad
+  q_i = Q_i,
+\]
+where \(d_i,c_i\in\mathbb{R}^{N+1}\) and \(s_i,q_i\in\mathbb{R}\).  For any
+cellwise channel tensor \(g_{i,k}\), let
+\[
+  \mathcal{N}_x(g)_{i,k}
+  = \frac{g_{i,k}-\frac{1}{n_x}\sum_{j=1}^{n_x}g_{j,k}}
+         {\operatorname{std}_{1\le j\le n_x}(g_{j,k})+10^{-10}}
+\]
+be the per-sample spatial normalization.  The baseline manuscript-style feature
+vector is
+\[
+  z_i^{\mathrm{base}}
+  = \Big[
+      \mathcal{N}_x(|d_i|),
+      \mathcal{N}_x(|c_i|),
+      \mathcal{N}_x(|s_i|),
+      \mathcal{N}_x(|q_i|)
+    \Big]\in\mathbb{R}^{2N+4}.
+\]
+The sweep also introduced log-magnitude material and residual features,
+\[
+  L_{\alpha,[a,b]}(g)=
+  \operatorname{clip}_{[a,b]}\!\left(\log\!\left(1+\frac{|g|}{\alpha}\right)\right),
+  \qquad
+  \sigma_{a,i}=\max(\sigma_{t,i}-\sigma_{s,i},0),
+\]
+and the material vectors
+\[
+  m_i^{\log}=\Big[
+    L_{\alpha,[a,b]}(\sigma_{s,i}),
+    L_{\alpha,[a,b]}(\sigma_{t,i}),
+    L_{\alpha,[a,b]}(\sigma_{a,i})
+  \Big],
+\]
+\[
+  m_i^{\mathrm{all}}=\Big[
+    m_i^{\log},
+    \frac{\sigma_{s,i}}{\max(|\sigma_{t,i}|,\varepsilon)},
+    \frac{\sigma_{a,i}}{\max(|\sigma_{t,i}|,\varepsilon)}
+  \Big].
+\]
+The selected feature maps are
+\begin{align*}
+  x_i^{(3)} &= \big[z_i^{\mathrm{base}},\,m_i^{\mathrm{all}}\big],
+  &\alpha&=0.1, & [a,b]&=[0,20], & \dim x_i^{(3)}&=15, \\
+  x_i^{(7)} &= \big[
+      L_{0.1,[0,10]}(d_i),
+      L_{0.1,[0,10]}(c_i),
+      L_{0.1,[0,10]}(s_i),
+      L_{0.1,[0,10]}(q_i),
+      \mathcal{N}_x(m_i^{\mathrm{all}})
+    \big],
+  &&& [a,b]&=[0,10], & \dim x_i^{(7)}&=23, \\
+  x_i^{(9)} &= \big[z_i^{\mathrm{base}},\,\mathcal{N}_x(m_i^{\log})\big],
+  &\alpha&=1.0, & [a,b]&=[0,40], & \dim x_i^{(9)}&=25 .
+\end{align*}
+The \(N=3\) and \(N=9\) maps retain the normalized baseline residual/source
+features, while the \(N=7\) map uses clipped log-magnitude residual/source
+features without residual/source normalization.
+
+\section{Selected training settings}
+The hyperparameters below are the settings selected by the sweep and then
+retrained for 10 independent replicas.  Each run uses Adam and the final-time
+scalar-flux loss above.
+\begin{center}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{c c c c c c c c c c}
+\toprule
+\(N\) & hidden & batch & epochs & lr & scheduler & wd NN & wd const & feature map & horizons \\
+\midrule
+3 & 64 & 32 & 100 & 0.003 & constant & \(10^{-3}\) & \(10^{-4}\) & \(x_i^{(3)}\) & \(\{0.5\}\) \\
+7 & 512 & 64 & 100 & 0.01 & cosine, warmup 0.05 & \(10^{-6}\) & \(10^{-4}\) & \(x_i^{(7)}\) & \(\{0.5\}\) \\
+9 & 256 & 32 & 100 & 0.01 & constant & \(10^{-6}\) & \(10^{-4}\) & \(x_i^{(9)}\) & \(\{0.25,0.5,1.0\}\) \\
+\bottomrule
+\end{tabular}%
+}
+\end{center}
+
+For comparison, the paper-setting constant-filter baseline uses the original
+paper training distribution, 10 replicas, batch size 64, 200 epochs, Adam with
+learning rate 0.1, cosine scheduling with warmup fraction 0.05, and weight decay
+\(10^{-6}\) for each \(N\in\{3,7,9\}\).
+
+\section{Updated one-dimensional results}
+Tables report mean \(\pm\) standard deviation over 10 independently trained
+replicas.  Here \(\rNN{N}\) denotes the updated neural network,
+\(\rAugConst{N}\) denotes a constant filter trained on the same augmented
+sweep-selected setting as the neural network, and \(\rPaperConst{N}\) denotes the
+constant filter trained with the original paper setting.  Bold entries are the
+lowest mean value among the three learned-filter variants at fixed \(N\), test
+case, and time.
+
+\subsection{Gaussian}
+\begin{center}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{c c c c c c c c c c}
+\toprule
+ & \multicolumn{3}{c}{\(N=3\)} & \multicolumn{3}{c}{\(N=7\)} & \multicolumn{3}{c}{\(N=9\)} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7} \cmidrule(lr){8-10}
+\(t_f\) & \rNN{3} & \rAugConst{3} & \rPaperConst{3} & \rNN{7} & \rAugConst{7} & \rPaperConst{7} & \rNN{9} & \rAugConst{9} & \rPaperConst{9} \\
+\midrule
+0.5 & \cellbest{0.2467 \pm 0.0098} & \cell{0.9814 \pm 0.0010} & \cell{0.5772 \pm 0.0009} & \cellbest{0.1089 \pm 0.0169} & \cell{0.9618 \pm 0.0012} & \cell{0.5325 \pm 0.0012} & \cellbest{0.1108 \pm 0.0788} & \cell{0.9543 \pm 0.0042} & \cell{0.5344 \pm 0.0013} \\
+1.0 & \cellbest{0.2096 \pm 0.0023} & \cell{0.9647 \pm 0.0018} & \cell{0.3636 \pm 0.0010} & \cellbest{0.1036 \pm 0.0400} & \cell{0.9237 \pm 0.0023} & \cell{0.2790 \pm 0.0013} & \cellbest{0.0363 \pm 0.0222} & \cell{0.9101 \pm 0.0081} & \cell{0.2793 \pm 0.0014} \\
+\bottomrule
+\end{tabular}%
+}
+\end{center}
+\subsection{Vanishing cross section}
+\begin{center}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{c c c c c c c c c c}
+\toprule
+ & \multicolumn{3}{c}{\(N=3\)} & \multicolumn{3}{c}{\(N=7\)} & \multicolumn{3}{c}{\(N=9\)} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7} \cmidrule(lr){8-10}
+\(t_f\) & \rNN{3} & \rAugConst{3} & \rPaperConst{3} & \rNN{7} & \rAugConst{7} & \rPaperConst{7} & \rNN{9} & \rAugConst{9} & \rPaperConst{9} \\
+\midrule
+0.5 & \cellbest{0.3339 \pm 0.0091} & \cell{0.9835 \pm 0.0009} & \cell{0.6267 \pm 0.0008} & \cellbest{0.0881 \pm 0.0200} & \cell{0.9613 \pm 0.0012} & \cell{0.5252 \pm 0.0012} & \cellbest{0.1040 \pm 0.0749} & \cell{0.9552 \pm 0.0041} & \cell{0.5330 \pm 0.0014} \\
+1.0 & \cellbest{0.0817 \pm 0.0048} & \cell{0.9621 \pm 0.0020} & \cell{0.2975 \pm 0.0012} & \cellbest{0.0896 \pm 0.0401} & \cell{0.9263 \pm 0.0022} & \cell{0.2841 \pm 0.0014} & \cellbest{0.0274 \pm 0.0181} & \cell{0.9106 \pm 0.0081} & \cell{0.2734 \pm 0.0015} \\
+\bottomrule
+\end{tabular}%
+}
+\end{center}
+\subsection{Discontinuous cross section}
+\begin{center}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{c c c c c c c c c c}
+\toprule
+ & \multicolumn{3}{c}{\(N=3\)} & \multicolumn{3}{c}{\(N=7\)} & \multicolumn{3}{c}{\(N=9\)} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7} \cmidrule(lr){8-10}
+\(t_f\) & \rNN{3} & \rAugConst{3} & \rPaperConst{3} & \rNN{7} & \rAugConst{7} & \rPaperConst{7} & \rNN{9} & \rAugConst{9} & \rPaperConst{9} \\
+\midrule
+0.5 & \cellbest{0.3151 \pm 0.0083} & \cell{0.9829 \pm 0.0009} & \cell{0.6114 \pm 0.0008} & \cellbest{0.1050 \pm 0.0208} & \cell{0.9607 \pm 0.0012} & \cell{0.5234 \pm 0.0012} & \cellbest{0.1093 \pm 0.0977} & \cell{0.9547 \pm 0.0042} & \cell{0.5311 \pm 0.0014} \\
+1.0 & \cellbest{0.1991 \pm 0.0088} & \cell{0.9623 \pm 0.0020} & \cell{0.2942 \pm 0.0012} & \cellbest{0.1479 \pm 0.0382} & \cell{0.9242 \pm 0.0023} & \cell{0.2772 \pm 0.0014} & \cellbest{0.0480 \pm 0.0227} & \cell{0.9094 \pm 0.0082} & \cell{0.2703 \pm 0.0015} \\
+\bottomrule
+\end{tabular}%
+}
+\end{center}
+\subsection{Reeds}
+\begin{center}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{c c c c c c c c c c}
+\toprule
+ & \multicolumn{3}{c}{\(N=3\)} & \multicolumn{3}{c}{\(N=7\)} & \multicolumn{3}{c}{\(N=9\)} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7} \cmidrule(lr){8-10}
+\(t_f\) & \rNN{3} & \rAugConst{3} & \rPaperConst{3} & \rNN{7} & \rAugConst{7} & \rPaperConst{7} & \rNN{9} & \rAugConst{9} & \rPaperConst{9} \\
+\midrule
+5.0 & \cell{0.4493 \pm 0.0099} & \cell{0.8638 \pm 0.0066} & \cellbest{0.2613 \pm 0.0002} & \cell{0.4725 \pm 0.0813} & \cell{0.7413 \pm 0.0067} & \cellbest{0.2502 \pm 0.0002} & \cell{0.3582 \pm 0.0330} & \cell{0.7037 \pm 0.0225} & \cellbest{0.2438 \pm 0.0002} \\
+10.0 & \cell{0.7526 \pm 0.0128} & \cell{0.8215 \pm 0.0077} & \cellbest{0.5550 \pm 0.0000} & \cell{0.8206 \pm 0.1134} & \cell{0.5277 \pm 0.0093} & \cellbest{0.4007 \pm 0.0006} & \cell{0.5745 \pm 0.0728} & \cell{0.4807 \pm 0.0296} & \cellbest{0.3242 \pm 0.0005} \\
+\bottomrule
+\end{tabular}%
+}
+\end{center}
+
+\end{document}

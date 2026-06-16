@@ -1,0 +1,134 @@
+
+\documentclass[10pt]{article}
+\usepackage[margin=0.75in]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+\renewcommand{\arraystretch}{1.18}
+
+\title{1D Training Setups: Paper and Augmented}
+\author{NN\_FPN repository notes}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section*{Where the settings live}
+The 1D training data mode is selected by the YAML field
+\texttt{1d.train.params.training\_data}. In the current 1D reproduction config this is
+\texttt{augmented}; in the all-target and smoke configs it is \texttt{paper}.
+The implementation is in \texttt{1D/src/train\_model.py}: \texttt{\_training\_data\_mode},
+\texttt{\_sample\_augmented\_training\_batch}, \texttt{\_fill\_initial\_condition}, and
+\texttt{\_fill\_cross\_sections}.
+
+\begin{center}
+\begin{tabular}{>{\ttfamily}p{0.33\linewidth} p{0.58\linewidth}}
+\toprule
+Config / code item & Meaning \\
+\midrule
+training\_data: paper & Use the original fixed four-family 1D training set. \\
+training\_data: augmented & Draw every training batch from randomized IC/source and material families. \\
+model\_tag & Tags checkpoint filenames, e.g. \texttt{model\_augmented\_N3\_0.pth}. \\
+training\_time\_horizons & Candidate final times for augmented batches. Current value: \(\{0.25,0.5,1.0\}\). \\
+aux\_moment\_loss\_weight & Optional retained-moment penalty added only when \texttt{obj\_idx=0}; current value is \(0\). \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section*{Common numerical/training settings}
+For the current \texttt{configs/reproduce\_1d.yaml} run:
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Quantity & Value \\
+\midrule
+Domain & \([-1,1]\), \(n_x=128\), \(\Delta x = 1/64\), \(\Delta t = \Delta x/2\) \\
+Orders & \(N\in\{3,7,9\}\), exact reference \(N_{\rm exact}=127\) \\
+Optimizer & Adam, learning rate \(0.1\), NN weight decay \(10^{-5}\), constant weight decay \(10^{-6}\) \\
+Batch / epochs & batch size \(64\), epochs \(100\) in \texttt{reproduce\_1d.yaml} \\
+Loss & final-time scalar-flux loss, \texttt{obj\_idx=0}; no auxiliary moment penalty by default \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section*{Paper training setup}
+The paper-mode sampler uses four fixed initial/source families, split across the batch. Cross sections are homogeneous per sample and redrawn each epoch.
+
+\begin{center}
+\begin{tabular}{p{0.23\linewidth} p{0.65\linewidth}}
+\toprule
+Family & Definition on \([-1,1]\) \\
+\midrule
+Gaussian & \(\psi_0(x)=\frac{1}{\sqrt{2\pi}0.10}\exp[-x^2/(2\,0.10^2)]\), no source. \\
+Step & \(\psi_0=1\) for \(|x|<0.2\), no source. \\
+Bump & \(\psi_0=\cos(\pi x)\) for \(|x|<0.5\), no source. \\
+Discontinuous source & \(\psi_0=1\) for \(|x|<0.25\); source is \(2\) for \(|x|>0.75\) and \(1\) for \(|x|<0.5\). \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+For each batch sample in paper mode,
+\[
+  \sigma_s \sim U(0,\sigma_{s,\max}), \qquad
+  \sigma_a \sim U(0,\sigma_{s,\max}-\sigma_s), \qquad
+  \sigma_t = \sigma_s + \sigma_a.
+\]
+With the current config, \(\sigma_{s,\max}=1\). The final time is the fixed training parameter \(T\), not the \texttt{training\_time\_horizons} list.
+
+\section*{Augmented training setup}
+In augmented mode, each batch item independently draws one IC/source family from \(\{0,\ldots,6\}\) and one material family from \(\{0,\ldots,5\}\). It also draws a final time uniformly from the configured list \(\{0.25,0.5,1.0\}\).
+
+\subsection*{Augmented IC/source families}
+\begin{longtable}{p{0.10\linewidth} p{0.82\linewidth}}
+\toprule
+Family & Randomized definition \\
+\midrule
+0 & Gaussian: center \(c\sim U(-0.4,0.4)\), width \(w\sim U(0.03,0.15)\), amplitude \(A\sim U(0.5,2)\), normalized Gaussian \(A/(\sqrt{2\pi}w)\). \\
+1 & Step: center \(c\sim U(-0.35,0.35)\), half-width \(h\sim U(0.08,0.35)\), amplitude \(A\sim U(0.5,5)\). \\
+2 & Cosine bump: center \(c\sim U(-0.35,0.35)\), width \(w\sim U(0.2,0.55)\), amplitude \(A\sim U(0.5,3)\), profile \(A\cos(\pi |x-c|/(2w))\) for \(|x-c|<w\). \\
+3 & Discontinuous source-like: local block with center \(c\sim U(-0.25,0.25)\), half-width \(h\sim U(0.05,0.25)\), IC amplitude \(U(0.5,2)\); outer source amplitude \(U(0.5,5)\) beyond a random threshold in \([0.65,0.85]\); local source increment \(U(0.25,2)\). \\
+4 & Central block: half-width \(h\sim U(0.08,0.3)\), IC amplitude \(U(0.5,5)\). \\
+5 & Two source pulses: each pulse has center \(c\sim U(-0.55,0.55)\), half-width \(h\sim U(0.04,0.16)\), source amplitude increment \(U(1,20)\). \\
+6 & Reeds-like source case on \([-1,1]\): high source \(U(5,50)\) on \(x<-0.5\); moderate source \(U(0.5,3)\) on \(0.25<x<0.55\). \\
+\bottomrule
+\end{longtable}
+
+\subsection*{Augmented material / cross-section families}
+\begin{longtable}{p{0.10\linewidth} p{0.82\linewidth}}
+\toprule
+Case & Randomized definition \\
+\midrule
+0 & Homogeneous: \(\sigma_s\sim U(0,\sigma_{s,\max})\), \(\sigma_a\sim U(0,\sigma_{s,\max}-\sigma_s)\), \(\sigma_t=\sigma_s+\sigma_a\). \\
+1 & Vanishing-like: center \(c\sim U(-0.2,0.2)\), power \(p\sim U(2,6)\), scale \(a\sim U(1,100)\), floor \(f\sim U(0,10^{-3})\), with \(\sigma_s=\sigma_t=f+a|x-c|^p\). \\
+2 & Discontinuous low slabs: high background \(H\sim U(0.5,10)\), low slab value \(L\sim U(0,0.25)\), two slab centers near \(\pm U(0.3,0.7)\), half-width \(U(0.05,0.2)\), and \(\sigma_t=\sigma_s+U(0,1)\). \\
+3 & Vacuum window: background \(\sigma_s\sim U(0.2,3)\), \(\sigma_t=\sigma_s+U(0,2)\), then a central window sets both \(\sigma_s\) and \(\sigma_t\) to zero. \\
+4 & Strong material inclusion: background total \(U(0.05,1)\), strong total \(U(5,50)\), scatter fraction \(U(0,0.95)\), random material center and half-width. \\
+5 & Reeds-like piecewise medium on \([-1,1]\): base regions \((\sigma_s,\sigma_t)=(0,50),(0,5),(0,0),(0.9,1),(0.9,1)\), scaled by \(U(0.5,1.5)\), with high and moderate source increments. \\
+\bottomrule
+\end{longtable}
+
+\section*{Are augmented cross sections similar to test-time cross sections?}
+Yes, mostly by design, but the augmented sampler is broader and not an exact copy of every test case.
+
+\begin{center}
+\begin{tabular}{p{0.25\linewidth} p{0.35\linewidth} p{0.30\linewidth}}
+\toprule
+Test case & Test-time cross section & Augmented relation \\
+\midrule
+Gaussian & Homogeneous \(\sigma_s=\sigma_t=0.5\). & Covered by material case 0 when absorption is near zero and \(\sigma_s\approx 0.5\). \\
+Vanishing cross section & \(\sigma_s=\sigma_t=100x^4\). & Directly similar to case 1; exact test form is inside the range when \(c=0,p=4,a=100,f=0\). \\
+Discontinuous cross section & Background \(1\), low slabs \(0.2\), with \(\sigma_s=\sigma_t\). & Similar to case 2; locations and widths are randomized. Case 2 often has \(\sigma_t>\sigma_s\), so it is broader than the test. \\
+Reeds & Piecewise \((0,50),(0,5),(0,0),(0.9,1),(0.9,1)\) on \([0,8]\), with sources \(50\) and \(1\). & Similar to case 5 after mapping the geometry to \([-1,1]\), with material values scaled by \(0.5\)--\(1.5\) and randomized source strengths. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The main mismatch is that the augmented setup includes additional material regimes that are not used as named test cases: vacuum windows, strong absorbing/scattering inclusions, shifted vanishing profiles, and randomized absorption gaps where \(\sigma_t>\sigma_s\). This makes the augmented data a superset-style stress sampler, while the paper mode is much closer to the original homogeneous-training setup.
+
+\end{document}

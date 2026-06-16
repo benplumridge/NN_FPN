@@ -1,0 +1,3 @@
+table,ansatz,model_tag,ic_idx,problem,final_time,N,mean_flux_error_reduction,std_flux_error_reduction,num_tests,paper_table_cell
+1d_reeds,constant,best_sweep_n9_10x,6,Reeds,5.0,9,0.7037079930305481,0.022535279393196106,10,0.7037 ± 0.0225
+1d_reeds,constant,best_sweep_n9_10x,6,Reeds,10.0,9,0.4806865155696869,0.029599575325846672,10,0.4807 ± 0.0296

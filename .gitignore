@@ -123,12 +123,16 @@ celerybeat.pid
 
 # Environments
 .env
+.env.*
+!.env.example
 .venv
+.venv/
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+myenv*/
 
 # Spyder project settings
 .spyderproject
@@ -145,6 +149,9 @@ venv.bak/
 .dmypy.json
 dmypy.json
 
+# ruff
+.ruff_cache/
+
 # Pyre type checker
 .pyre/
 
@@ -160,3 +167,33 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+
+# Experiment tracking, logs, and generated run output
+wandb/
+runs/
+logs/
+*.out
+*.err
+results/
+
+# Generated experiment tables and timing files
+error_reduction*
+testing_times.txt
+
+# Generated model/checkpoint artifacts
+*.pth
+*.pt
+*.ckpt
+*.onnx
+trained_models/
+trained_models_const/
+
+# Generated NumPy scratch output
+P37.npy
+P37*.npy
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

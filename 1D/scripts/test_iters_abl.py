@@ -4,7 +4,7 @@ import torch
 
 # Add src to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
-from params_common import params
+from params_common import params, resolve_device
 from test_model import testing
 
 
@@ -22,8 +22,7 @@ num_tests = 10
 
 params["batch_size"] = 1
 params["tt_flag"] = 1
-params["device"] = "cpu"
-
+params["device"] = resolve_device(params.get("device"))
 
 
 with open("error_reduction_table.txt", "w") as f:

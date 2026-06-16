@@ -2,6 +2,15 @@ import torch
 import torch.optim as optim
 import numpy as np
 
+
+def resolve_device(value=None):
+    if isinstance(value, torch.device):
+        return value
+    if value is None or str(value).lower() == "auto":
+        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    return torch.device(value)
+
+
 bias_init = 0
 
 N = 3
@@ -11,21 +20,32 @@ N_exact = 37
 num_x = 100
 T = 0.5
 
-#objective functional flag
+# objective functional flag
 # 0 - final time scalar flux
-# 1 - over time scalar flux
-obj_idx = 1
+# 1 - scalar flux in time, summed over time steps
+# 2 - scalar flux in time, averaged over time steps
+# 3 - scalar flux in time, averaged over time steps (1D-compatible alias)
+obj_idx = 0
 
 filter_order = 4
+
+feature_variant = "baseline_norm"
+feature_normalization = "sample"
+material_feature_normalization = "none"
+feature_log_scale = 1.0
+feature_log_clip = [0.0, 20.0]
+feature_eps = 1e-8
+include_material_scale_features = False
+include_material_ratios = False
 
 # filter type
 # 0 - Neural network
 # 1 - Constant trained
 # 2 - Constant input
-filter_type = 1
+filter_type = 0
 
-#constant filter strength for filter_type = 2
-sigf_const =  15
+# constant filter strength for filter_type = 2
+sigf_const = 15
 
 show_sym_errors = 0
 show_plots = 0
@@ -82,12 +102,20 @@ params = {
     "num_basis": num_basis,
     "filter_order": filter_order,
     "filter_type": filter_type,
-     "sigf_const" : sigf_const,
+    "sigf_const": sigf_const,
     "num_basis_exact": num_basis_exact,
     "plot_idx": plot_idx,
     "show_plots": show_plots,
     "show_sym_errors": show_sym_errors,
     "show_slices": show_slices,
-    "obj_idx"    : obj_idx,
-    "bias_init"  : bias_init
+    "obj_idx": obj_idx,
+    "feature_variant": feature_variant,
+    "feature_normalization": feature_normalization,
+    "material_feature_normalization": material_feature_normalization,
+    "feature_log_scale": feature_log_scale,
+    "feature_log_clip": feature_log_clip,
+    "feature_eps": feature_eps,
+    "include_material_scale_features": include_material_scale_features,
+    "include_material_ratios": include_material_ratios,
+    "bias_init": bias_init,
 }

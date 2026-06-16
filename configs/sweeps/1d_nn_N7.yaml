@@ -1,0 +1,53 @@
+# W&B sweep for 1D NN-FPN, N=7.
+# Create with: uv run wandb sweep configs/sweeps/1d_nn_N7.yaml
+# Run agents with the sweep ID printed by W&B: uv run wandb agent <entity>/NN_FPN/<sweep_id>
+name: 1d-nn-N7-feature-training-sweep
+project: NN_FPN
+method: random
+run_cap: 96
+metric:
+  name: train/loss
+  goal: minimize
+program: scripts/run_1d_nn_sweep.py
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - --base-config
+  - configs/reproduce_1d.yaml
+  - --N
+  - "7"
+  - ${args}
+parameters:
+  hidden_width:
+    values: [64, 128, 256, 512]
+  learning_rate:
+    values: [0.003, 0.01, 0.03, 0.1]
+  nn_weight_decay:
+    values: [0.0, 0.000001, 0.00001, 0.0001, 0.001]
+  batch_size:
+    values: [32, 64, 128]
+  lr_scheduler:
+    values: [cosine, constant]
+  lr_warmup_fraction:
+    values: [0.0, 0.05, 0.1]
+  lr_min_factor:
+    values: [0.0, 0.00001, 0.0001, 0.001]
+  feature_variant:
+    values: [baseline_norm, log_norm, baseline_plus_log, log_material_only, no_norm_log]
+  feature_normalization:
+    values: [sample, none]
+  material_feature_normalization:
+    values: [none, sample]
+  feature_log_scale:
+    values: [0.1, 1.0, 10.0]
+  feature_log_clip_max:
+    values: [10.0, 20.0, 40.0]
+  include_material_scale_features:
+    values: [false, true]
+  include_material_ratios:
+    values: [false, true]
+  aux_moment_loss_weight:
+    values: [0.0, 0.01, 0.1]
+  training_time_horizons:
+    values: ["0.5", "0.25,0.5,1.0", "0.25,0.5,1.0,2.0"]

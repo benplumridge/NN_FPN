@@ -4,7 +4,7 @@ import torch
 
 # Add src to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
-from params_common import params
+from params_common import params, resolve_device
 from test_model import testing
 
 
@@ -22,10 +22,9 @@ num_tests = 1
 
 params["batch_size"] = 1
 params["tt_flag"] = 1
-params["device"] = "cpu"
-params["ablation_idx"] = 0 
+params["device"] = resolve_device(params.get("device"))
+params["ablation_idx"] = 0
 params["IC_idx"] = IC_idx
-
 
 
 error_reduction = []
@@ -38,5 +37,4 @@ error_reduction = torch.tensor(error_reduction)
 
 print(
     f"Error_reduction = {error_reduction.mean().item():.4f} \pm {error_reduction.std().item():.4f}"
-    )
-
+)
