@@ -18,7 +18,7 @@ from test_model import testing
 IC_idx = 6
 params["IC_idx"] = IC_idx
 
-num_tests = int(params.get("num_tests", 5))
+num_tests = int(params.get("num_tests", 10))
 
 params["batch_size"] = 1
 params["tt_flag"] = 1
@@ -64,7 +64,7 @@ def _validate_checkpoints():
 
 def _error_stats(values):
     tensor = torch.stack([torch.as_tensor(value).detach().cpu() for value in values])
-    return tensor.mean().item(), tensor.std(unbiased=False).item()
+    return tensor.mean().item(), tensor.std(unbiased=True).item()
 
 
 def _write_csv(rows):
@@ -117,8 +117,44 @@ with open(file_name, "w") as f:
         row = [f"{T_val:.1f}"]
 
         for N in Ns:
+
             params["N"] = N
             error_reduction = []
+            
+            if N == 3:
+                params.update({
+                    "feature_variant": "log_material_only",
+                    "feature_normalization": "sample",
+                    "material_feature_normalization": "none",
+                    "feature_log_scale": 0.1,
+                    "feature_log_clip": [0.0, 20.0],
+                    "include_material_scale_features": True,
+                    "include_material_ratios": True,
+                })
+
+            elif N == 7:
+                params.update({
+                    "feature_variant": "no_norm_log",
+                    "feature_normalization": "sample",
+                    "material_feature_normalization": "sample",
+                    "feature_log_scale": 0.1,
+                    "feature_log_clip": [0.0, 10.0],
+                    "include_material_scale_features": True,
+                    "include_material_ratios": True,
+                })
+
+            elif N == 9:
+                params.update({
+                    "feature_variant": "baseline_norm",
+                    "feature_normalization": "sample",
+                    "material_feature_normalization": "sample",
+                    "feature_log_scale": 1.0,
+                    "feature_log_clip": [0.0, 40.0],
+                    "include_material_scale_features": True,
+                    "include_material_ratios": False,
+                })
+
+
 
             for j in range(num_tests):
                 error_red = testing(params, j)

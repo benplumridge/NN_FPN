@@ -31,9 +31,9 @@ def model_tag_from_params(params_or_value=None):
 def tagged_model_path(N, model_idx, filter_type, model_tag=None):
     tag = model_tag_from_params(model_tag)
     if filter_type in (1, 2):
-        return f"trained_models/model_{tag}_N{N}_{model_idx}.pth"
+        return f"trained_models/model_best_sweep_n{N}_10x_N{N}_{model_idx}.pth"
     if filter_type == 3:
-        return f"trained_models_const/model_{tag}_N{N}_{model_idx}.pth"
+        return f"trained_models_const/model_best_sweep_n{N}_10x_N{N}_{model_idx}.pth"
     raise ValueError(f"Unsupported filter_type: {filter_type}")
 
 
@@ -41,8 +41,8 @@ N = 3
 N_exact = 127
 num_x = 128
 T = 0.5
-# num_x = 128*4
-# T = 5
+num_x = 128*4
+T = 5
 
 # show plot = 1 -> plot
 show_plot = 0
@@ -68,14 +68,47 @@ xr = 1
 
 filter_order = 4
 
-feature_variant = "baseline_norm"
-feature_normalization = "sample"
-material_feature_normalization = "none"
-feature_log_scale = 1.0
-feature_log_clip = [0.0, 20.0]
+# feature_variant = "baseline_norm"
+# feature_normalization = "sample"
+# material_feature_normalization = "none"
+# feature_log_scale = 1.0
+# feature_log_clip = [0.0, 20.0]
 feature_eps = 1e-8
-include_material_scale_features = False
-include_material_ratios = False
+# include_material_scale_features = True
+# include_material_ratios = True
+
+if N == 3:
+    feature_variant = "log_material_only"
+    feature_normalization = "sample"
+    feature_log_scale = 0.1
+    feature_log_clip = [0.0, 20.0]
+    include_material_scale_features = True
+    include_material_ratios = True
+    material_feature_normalization = "none"
+
+elif N == 7:
+    feature_variant = "no_norm_log"
+    feature_normalization = "sample"
+    feature_log_scale = 0.1
+    feature_log_clip = [0.0, 10.0]
+    include_material_scale_features = True
+    include_material_ratios = True
+    material_feature_normalization = "sample"
+
+elif N == 9:
+    feature_variant = "baseline_norm"
+    feature_normalization = "sample"
+    feature_log_scale = 1.0
+    feature_log_clip = [0.0, 40.0]
+    include_material_scale_features = True
+    include_material_ratios = False
+    material_feature_normalization = "sample"
+
+else:
+    raise ValueError(
+        f"Unsupported N={N}. "
+        "This pipeline currently supports N=3, N=7, and N=9."
+    )
 
 L = xr - xl
 dx = L / num_x

@@ -20,17 +20,19 @@ IC_idx = 6
 params["IC_idx"] = IC_idx
 num_tests = 10
 
+params["include_material_features"] = True
+params["include_material_ratios"] = True
 params["batch_size"] = 1
 params["tt_flag"] = 1
 params["device"] = resolve_device(params.get("device"))
 
 
-with open("error_reduction_table.txt", "w") as f:
+with open("error_reduction_table_abl.txt", "w") as f:
     f.write(f"IC_idx = {IC_idx}\n")
 
     row_str = ""  # this will store one row
 
-    for abl_idx in range(10):
+    for abl_idx in range(14):
         params["ablation_idx"] = abl_idx
         error_reduction = []
 
@@ -48,4 +50,4 @@ with open("error_reduction_table.txt", "w") as f:
     # write the full row once
     f.write(row_str + "\n")
 
-print("Tables saved to error_reduction_table.txt")
+print("Tables saved to error_reduction_table_abl.txt")

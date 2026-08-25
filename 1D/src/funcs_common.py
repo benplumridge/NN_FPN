@@ -427,106 +427,369 @@ def _expand_1d_material_field(value, params):
     return value
 
 
+# def _material_feature_tensor(sigs, sigt, params, mode=None):
+#     sigs = _expand_1d_material_field(sigs, params)
+#     sigt = _expand_1d_material_field(sigt, params)
+#     siga = torch.clamp(sigt - sigs, min=0.0)
+
+#     features = [
+#         _log_magnitude(sigs, params),
+#         _log_magnitude(sigt, params),
+#         _log_magnitude(siga, params),
+#     ]
+#     if params.get("include_material_ratios", False):
+#         denom = torch.clamp(torch.abs(sigt), min=_feature_eps(params))
+#         features.extend((sigs / denom, siga / denom))
+
+#     material_features = torch.cat(features, dim=-1)
+#     mode = params.get("material_feature_normalization", mode or "none")
+#     return _normalize_feature_tensor(material_features, params, mode=mode)
+
 def _material_feature_tensor(sigs, sigt, params, mode=None):
     sigs = _expand_1d_material_field(sigs, params)
     sigt = _expand_1d_material_field(sigt, params)
     siga = torch.clamp(sigt - sigs, min=0.0)
 
-    features = [
+    # ---------------------------------------------------------
+    # Log-material features
+    # ---------------------------------------------------------
+    log_features = [
         _log_magnitude(sigs, params),
         _log_magnitude(sigt, params),
         _log_magnitude(siga, params),
     ]
+
+    # ---------------------------------------------------------
+    # Material-ratio features
+    # ---------------------------------------------------------
+    ratio_features = []
+
     if params.get("include_material_ratios", False):
-        denom = torch.clamp(torch.abs(sigt), min=_feature_eps(params))
-        features.extend((sigs / denom, siga / denom))
+        denom = torch.clamp(
+            torch.abs(sigt),
+            min=_feature_eps(params)
+        )
+
+        ratio_features = [
+            sigs / denom,
+            siga / denom,
+        ]
+
+    # IMPORTANT:
+    # Preserve the original channel ordering:
+    #
+    #   log(sigs), log(sigt), log(siga), ratio1, ratio2
+    #
+    features = log_features + ratio_features
 
     material_features = torch.cat(features, dim=-1)
-    mode = params.get("material_feature_normalization", mode or "none")
-    return _normalize_feature_tensor(material_features, params, mode=mode)
+
+    # Preserve the original normalization behavior.
+    mode = params.get(
+        "material_feature_normalization",
+        mode or "none"
+    )
+
+    material_features = _normalize_feature_tensor(
+        material_features,
+        params,
+        mode=mode
+    )
+
+    # ---------------------------------------------------------
+    # Split into the two conceptual ablation groups.
+    #
+    # Group 4 = log materials
+    # Group 5 = material ratios
+    # ---------------------------------------------------------
+    n_log_channels = sum(
+        x.shape[-1] for x in log_features
+    )
+
+    log_material_features = material_features[
+        ..., :n_log_channels
+    ]
+
+    material_ratio_features = material_features[
+        ..., n_log_channels:
+    ]
+
+    return log_material_features, material_ratio_features
 
 
-def _legacy_feature_groups_1d(A_Dy, sigt_y, scattering, source, filter_type):
+def _legacy_feature_groups_1d(
+    A_Dy,
+    sigt_y,
+    scattering,
+    source,
+    filter_type
+):
     scattering_NN = NN_normalization(torch.abs(scattering))
     source_NN = NN_normalization(torch.abs(source))
 
     if filter_type == 1:
         A_Dy_NN = NN_normalization(torch.abs(A_Dy))
         sigt_y_NN = NN_normalization(torch.abs(sigt_y))
+
     elif filter_type == 2:
         A_Dy_mixed = A_Dy.clone()
         sigt_y_mixed = sigt_y.clone()
-        A_Dy_mixed[:, :, 1::2] = torch.abs(A_Dy[:, :, 1::2])
-        sigt_y_mixed[:, :, 1::2] = torch.abs(sigt_y[:, :, 1::2])
+
+        A_Dy_mixed[:, :, 1::2] = torch.abs(
+            A_Dy[:, :, 1::2]
+        )
+
+        sigt_y_mixed[:, :, 1::2] = torch.abs(
+            sigt_y[:, :, 1::2]
+        )
+
         A_Dy_NN = NN_normalization(A_Dy_mixed)
         sigt_y_NN = NN_normalization(sigt_y_mixed)
-    else:
-        raise ValueError(f"Unsupported NN filter_type={filter_type}")
 
-    return A_Dy_NN, sigt_y_NN, scattering_NN, source_NN
+    else:
+        raise ValueError(
+            f"Unsupported NN filter_type={filter_type}"
+        )
+
+    return (
+        A_Dy_NN,
+        sigt_y_NN,
+        scattering_NN,
+        source_NN,
+    )
 
 
 def _apply_1d_ablation(groups, params):
-    ablation_idx = int(params.get("ablation_idx", 0))
+    ablation_idx = int(
+        params.get("ablation_idx", 0)
+    )
+
+    # =========================================================
+    # Six conceptual feature groups:
+    #
+    #   0 = A_Dy
+    #   1 = sigt_y
+    #   2 = scattering
+    #   3 = source
+    #   4 = log materials
+    #   5 = material ratios
+    # =========================================================
     selections = {
-        0: {0, 1, 2, 3},
-        1: {0},
-        2: {1},
-        3: {2},
-        4: {3},
-        5: set(),
-        6: {1, 2, 3},
-        7: {0, 2, 3},
-        8: {0, 1, 3},
-        9: {0, 1, 2},
+
+        # -----------------------------------------------------
+        # All features
+        # -----------------------------------------------------
+        0: {0, 1, 2, 3, 4, 5},
+
+        # -----------------------------------------------------
+        # Single-feature tests
+        # -----------------------------------------------------
+        1: {0},      # A_Dy only
+        2: {1},      # sigt_y only
+        3: {2},      # scattering only
+        4: {3},      # source only
+        5: {4},      # log materials only
+        6: {5},      # material ratios only
+
+        # -----------------------------------------------------
+        # No features
+        # -----------------------------------------------------
+        7: set(),
+
+        # -----------------------------------------------------
+        # Leave-one-out tests
+        # -----------------------------------------------------
+        8:  {1, 2, 3, 4, 5},  # remove A_Dy
+        9:  {0, 2, 3, 4, 5},  # remove sigt_y
+        10: {0, 1, 3, 4, 5},  # remove scattering
+        11: {0, 1, 2, 4, 5},  # remove source
+        12: {0, 1, 2, 3, 5},  # remove log materials
+        13: {0, 1, 2, 3, 4},  # remove material ratios
     }
-    if ablation_idx not in selections:
-        raise ValueError(f"Unsupported ablation_idx={ablation_idx}")
+
     selected = selections[ablation_idx]
-    return tuple(
+
+    output = tuple(
         group if idx in selected else torch.zeros_like(group)
+        for idx, group in enumerate(groups)
+    )
+
+    # print(
+    #     "ABLATION",
+    #     ablation_idx,
+    #     "selected =", sorted(selected),
+    #     "means =",
+    #     [x.abs().mean().item() for x in output],
+    # )
+
+
+    if ablation_idx not in selections:
+        raise ValueError(
+            f"Unsupported ablation_idx={ablation_idx}"
+        )
+
+    selected = selections[ablation_idx]
+
+    # IMPORTANT:
+    # We do NOT remove feature groups.
+    # We replace unselected groups with zeros so that
+    # the network always receives the same number of inputs.
+    return tuple(
+        group
+        if idx in selected
+        else torch.zeros_like(group)
         for idx, group in enumerate(groups)
     )
 
 
 def preprocess_features(
-    A_Dy, sigt_y, scattering, source, filter_type, params, sigs=None, sigt=None
+    A_Dy,
+    sigt_y,
+    scattering,
+    source,
+    filter_type,
+    params,
+    sigs=None,
+    sigt=None
 ):
     variant = feature_variant(params)
-    base_groups = _apply_1d_ablation(
-        _legacy_feature_groups_1d(A_Dy, sigt_y, scattering, source, filter_type), params
+
+    # =========================================================
+    # 1. Build the original four feature groups
+    # =========================================================
+    base_groups = _legacy_feature_groups_1d(
+        A_Dy,
+        sigt_y,
+        scattering,
+        source,
+        filter_type
     )
 
-    log_mode = "none" if variant == "no_norm_log" else None
-    raw_groups = (A_Dy, sigt_y, scattering, source)
-    log_groups = _apply_1d_ablation(
-        tuple(
-            _log_feature_tensor(group, params, mode=log_mode) for group in raw_groups
-        ),
-        params,
+    # =========================================================
+    # 2. Build log versions of the original four features
+    # =========================================================
+    log_mode = (
+        "none"
+        if variant == "no_norm_log"
+        else None
     )
 
+    raw_groups = (
+        A_Dy,
+        sigt_y,
+        scattering,
+        source
+    )
+
+    log_groups = tuple(
+        _log_feature_tensor(
+            group,
+            params,
+            mode=log_mode
+        )
+        for group in raw_groups
+    )
+
+    # =========================================================
+    # 3. Select the representation of the original four
+    #    feature groups
+    # =========================================================
     if variant == "baseline_norm":
+
         groups = list(base_groups)
+
     elif variant == "log_norm":
+
         groups = list(log_groups)
+
     elif variant == "baseline_plus_log":
-        groups = list(base_groups) + list(log_groups)
+
+        # Treat the baseline + log representation of each
+        # physical feature as ONE conceptual ablation group.
+        #
+        # This means:
+        #
+        #   group 0 = A_Dy + log(A_Dy)
+        #   group 1 = sigt_y + log(sigt_y)
+        #   group 2 = scattering + log(scattering)
+        #   group 3 = source + log(source)
+        #
+        groups = [
+            torch.cat(
+                [base_groups[i], log_groups[i]],
+                dim=-1
+            )
+            for i in range(4)
+        ]
+
     elif variant == "log_material_only":
+
         groups = list(base_groups)
+
     elif variant == "no_norm_log":
+
         groups = list(log_groups)
+
     else:
-        raise AssertionError(f"Unhandled feature_variant={variant!r}")
+        raise AssertionError(
+            f"Unhandled feature_variant={variant!r}"
+        )
 
+    # =========================================================
+    # 4. Add material features
+    #
+    #    group 4 = log materials
+    #    group 5 = material ratios
+    # =========================================================
     if _material_features_enabled(params):
+
         if sigs is None or sigt is None:
-            raise ValueError("sigs and sigt are required for material feature channels")
-        material_mode = "none" if variant == "no_norm_log" else None
-        groups.append(_material_feature_tensor(sigs, sigt, params, mode=material_mode))
+            raise ValueError(
+                "sigs and sigt are required for "
+                "material feature channels"
+            )
 
-    return torch.cat(groups, dim=-1)
+        material_mode = (
+            "none"
+            if variant == "no_norm_log"
+            else None
+        )
 
+        (
+            log_material_features,
+            material_ratio_features
+        ) = _material_feature_tensor(
+            sigs,
+            sigt,
+            params,
+            mode=material_mode
+        )
+
+        groups.extend([
+            log_material_features,      # group 4
+            material_ratio_features,    # group 5
+        ])
+
+    # =========================================================
+    # 5. Apply ablation to ALL six conceptual groups
+    #
+    #    Groups are zeroed, NOT removed.
+    #    Therefore the network input dimensionality remains
+    #    unchanged.
+    # =========================================================
+
+    groups = _apply_1d_ablation(
+        groups,
+        params
+    )
+
+    # =========================================================
+    # 6. Concatenate the groups
+    # =========================================================
+    return torch.cat(
+        groups,
+        dim=-1
+    )
 
 def filter_func(z, p):
     return torch.exp(-(z**p))

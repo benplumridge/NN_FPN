@@ -25,7 +25,8 @@ from test_model import testing
 # 6 - Reeds
 # IC_idx = 2
 
-num_tests = int(params.get("num_tests", 5))
+num_tests = int(params.get("num_tests", 10))
+
 
 params["batch_size"] = 1
 params["tt_flag"] = 1
@@ -39,7 +40,7 @@ IC_NAMES = {
     1: "Vanishing_cross_section",
     2: "Discontinuous_cross_section",
 }
-Ns = [int(N) for N in params.get("Ns", [3, 7, 9])]
+Ns = [int(N) for N in params.get("Ns", [3,7,9])]
 
 filter_type = params["filter_type"]
 if filter_type == 1:
@@ -75,7 +76,7 @@ def _validate_checkpoints():
 
 def _error_stats(values):
     tensor = torch.stack([torch.as_tensor(value).detach().cpu() for value in values])
-    return tensor.mean().item(), tensor.std(unbiased=False).item()
+    return tensor.mean().item(), tensor.std(unbiased=True).item()
 
 
 def _write_csv(rows):
@@ -130,6 +131,13 @@ with open(file_name, "w") as f:
             row = [f"{T_val:.1f}"]
 
             for N in Ns:
+                if N in {3,7}:
+                    params["include_material_features"] = True
+                    params["include_material_ratios"] = True
+                elif N in {9}:
+                    params["include_material_features"] = True
+                    params["include_material_ratios"] = False
+
                 params["N"] = N
                 error_reduction = []
 
